@@ -42,6 +42,8 @@ jobs:
 
       - name: Build Nyxian
         timeout-minutes: 1200
+        env:
+          SWIFT_BRANCH: swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a
         run: |
           set -e
 
