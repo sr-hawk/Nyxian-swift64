@@ -18,12 +18,17 @@ env:
   # Swift snapshot the LLVM-On-iOS toolchain is built from.
   SWIFT_BRANCH: swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a
   # LLVM backends to build. Upstream build-script defaults to
-  # X86;ARM;AArch64;PowerPC;SystemZ;Mips;RISCV;WebAssembly;AVR;BPF, which linked
-  # 47 of 261 archives worth of dead backends into llvm.a. Nyxian hosts and
-  # targets arm64-apple-ios16.0; iOS has had no 32-bit ARM device since iOS 11,
-  # so AArch64 is the only backend that can ever be used.
+  # X86;ARM;AArch64;PowerPC;SystemZ;Mips;RISCV;WebAssembly;AVR;BPF.
+  # The final compiler only targets arm64 (AArch64), but the ARM (32-bit)
+  # backend is ALSO required at build time: this toolchain force-builds
+  # compiler-rt baremetal macho_embedded builtins for armv6/armv6m/armv7/
+  # armv7m/armv7em/armv8m.main/armv8.1m.main (see
+  # COMPILER_RT_FORCE_BUILD_BAREMETAL_MACHO_BUILTINS_ARCHS), and the just-built
+  # clang must have the ARM backend to assemble those. AArch64 alone fails
+  # with "clang -arch armv6m ... udivsi3.S" -> code 1. So AArch64;ARM is the
+  # minimum; the other 8 upstream backends stay dropped.
   # This value is part of the cache key, so changing it rebuilds automatically.
-  LLVM_TARGETS: AArch64
+  LLVM_TARGETS: AArch64;ARM
   # Bump to throw away a bad toolchain cache without touching anything else.
   CACHE_EPOCH: v2
 
