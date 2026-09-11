@@ -3,24 +3,40 @@ name: Build iOS App
 on:
   push:
     branches:
-      - '**'
+      - main
   pull_request:
-    branches:
-      - '**'
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
+env:
+  # Swift snapshot the LLVM-On-iOS toolchain is built from.
+  SWIFT_BRANCH: swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a
+  # LLVM backends to build. Upstream build-script defaults to
+  # X86;ARM;AArch64;PowerPC;SystemZ;Mips;RISCV;WebAssembly;AVR;BPF, which linked
+  # 47 of 261 archives worth of dead backends into llvm.a. Nyxian hosts and
+  # targets arm64-apple-ios16.0; iOS has had no 32-bit ARM device since iOS 11,
+  # so AArch64 is the only backend that can ever be used.
+  # This value is part of the cache key, so changing it rebuilds automatically.
+  LLVM_TARGETS: AArch64
+  # Bump to throw away a bad toolchain cache without touching anything else.
+  CACHE_EPOCH: v2
+
 jobs:
   build:
     name: Build and Package
     runs-on: macos-latest
+    # GitHub hard-kills hosted jobs at 6h; stay just under so we fail loudly instead.
+    timeout-minutes: 350
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -29,6 +45,72 @@ jobs:
           VERSION=$(awk -F'=' '/^[[:space:]]*VERSION[[:space:]]*=/ {gsub(/[[:space:]]/,"",$2); print $2; exit}' Config.xcconfig)
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
+      # The build-script preset in the LLVM-On-iOS submodule never overrides
+      # --llvm-targets-to-build, so it inherits all ten upstream backends. We
+      # cannot repoint a submodule from the GitHub web UI, so patch the preset
+      # in place after checkout instead. Fails loudly rather than silently
+      # no-opping if the preset moves.
+      - name: Trim LLVM backends
+        run: |
+          set -euo pipefail
+          python3 - "$LLVM_TARGETS" <<'PY'
+          import pathlib, re, sys
+
+          targets = sys.argv[1]
+          preset  = "nyxian_iphoneos_arm64_crosscompiler"
+          header  = re.compile(r'^\[preset:\s*' + re.escape(preset) + r'\s*\]\s*$')
+          # Unindented key line only: indented lines are continuations of a
+          # multi-line value such as extra-cmake-options.
+          existing = re.compile(r'^llvm-targets-to-build\s*=')
+          nextsect = re.compile(r'^\[')
+
+          hits = []
+          for path in sorted(pathlib.Path("LLVM-On-iOS").rglob("*")):
+              if not path.is_file() or path.stat().st_size > 2_000_000:
+                  continue
+              try:
+                  lines = path.read_text(encoding="utf-8").split("\n")
+              except (UnicodeDecodeError, OSError):
+                  continue
+              idx = next((i for i, l in enumerate(lines) if header.match(l)), None)
+              if idx is None:
+                  continue
+
+              end = next((j for j in range(idx + 1, len(lines))
+                          if nextsect.match(lines[j])), len(lines))
+              body = [l for l in lines[idx + 1:end] if not existing.match(l)]
+              lines[idx + 1:end] = ["llvm-targets-to-build=" + targets] + body
+              path.write_text("\n".join(lines), encoding="utf-8")
+              hits.append(str(path))
+
+          if not hits:
+              sys.exit(
+                  "ERROR: preset [preset: %s] not found anywhere under LLVM-On-iOS/.\n"
+                  "The preset was renamed or moved. Find the new name in the build log\n"
+                  "line beginning '[utils/build-script] NOTE: using preset' and update\n"
+                  "the 'preset' variable in this step." % preset)
+
+          print("patched llvm-targets-to-build=%s in: %s" % (targets, ", ".join(hits)))
+          PY
+
+      - name: Resolve toolchain cache key
+        id: tc
+        run: |
+          set -e
+          SHA=$(git -C LLVM-On-iOS rev-parse HEAD)
+          TARGETS_SLUG=$(echo "$LLVM_TARGETS" | tr ';' '-')
+          echo "key=ccsl-${{ env.CACHE_EPOCH }}-${{ runner.os }}-${{ env.SWIFT_BRANCH }}-$TARGETS_SLUG-$SHA" >> "$GITHUB_OUTPUT"
+
+      # The Makefile treats Frameworks/CoreCompiler/CoreCompilerSupportLibs as a
+      # directory target with no prerequisites: if it already exists, the whole
+      # multi-hour LLVM + Swift toolchain build is skipped.
+      - name: Restore CoreCompiler support libs
+        id: ccsl
+        uses: actions/cache/restore@v6
+        with:
+          path: Frameworks/CoreCompiler/CoreCompilerSupportLibs
+          key: ${{ steps.tc.outputs.key }}
+
       - name: Install Dependencies
         run: |
           set -e
@@ -36,21 +118,25 @@ jobs:
           # Packages we desperately need
           brew install ldid dpkg libarchive
 
-      - name: Setup
-        run: |
-          set -e
-
       - name: Build Nyxian
-        timeout-minutes: 1200
-        env:
-          SWIFT_BRANCH: swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a
         run: |
           set -e
 
           CHECK_DEPS=0 make all
 
+      # Runs even when the app build fails, so a successfully built toolchain is
+      # never thrown away because of an unrelated compile error.
+      - name: Save CoreCompiler support libs
+        if: always() && steps.ccsl.outputs.cache-hit != 'true' && hashFiles('Frameworks/CoreCompiler/CoreCompilerSupportLibs/**') != ''
+        uses: actions/cache/save@v6
+        with:
+          path: Frameworks/CoreCompiler/CoreCompilerSupportLibs
+          key: ${{ steps.tc.outputs.key }}
+
       - name: Upload Nyxian
         uses: actions/upload-artifact@v7
         with:
+          name: Nyxian-${{ env.VERSION }}
           path: Nyxian.ipa
           archive: false
+          if-no-files-found: error
