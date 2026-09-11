@@ -134,11 +134,32 @@ int main(int argc, const char * argv[])
     }
     
     /* forcing the code directory to be valid */
-    if(!isKext && system([[NSString stringWithFormat:@"codesign --force -s - %@", bundle.bundlePath] UTF8String]) != 0)
+    if(!isKext)
     {
-        fprintf(stderr, "error: failed to force adhoc sign bundle\n");
-        [[NSFileManager defaultManager] removeItemAtPath:tmpSpace error:nil];
-        return 1;
+        /*
+         * Run codesign via NSTask with an argument vector rather than system()
+         * with an interpolated string: bundle.bundlePath is derived from a
+         * directory name inside the (untrusted) input .ipa, so passing it
+         * through a shell would break on spaces and allow command injection.
+         */
+        NSTask *codesignTask = [[NSTask alloc] init];
+        codesignTask.executableURL = [NSURL fileURLWithPath:@"/usr/bin/codesign"];
+        codesignTask.arguments = @[@"--force", @"-s", @"-", bundle.bundlePath];
+
+        NSError *codesignError = nil;
+        if(![codesignTask launchAndReturnError:&codesignError])
+        {
+            fprintf(stderr, "error: failed to launch codesign: %s\n", [[codesignError localizedDescription] UTF8String]);
+            [[NSFileManager defaultManager] removeItemAtPath:tmpSpace error:nil];
+            return 1;
+        }
+        [codesignTask waitUntilExit];
+        if(codesignTask.terminationStatus != 0)
+        {
+            fprintf(stderr, "error: failed to force adhoc sign bundle\n");
+            [[NSFileManager defaultManager] removeItemAtPath:tmpSpace error:nil];
+            return 1;
+        }
     }
     
     /* now we'll poc sign */
