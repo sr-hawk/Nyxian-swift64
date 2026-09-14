@@ -106,7 +106,7 @@
 		</dict>
 	</array>
 	<key>UIFileSharingEnabled</key>
-	<false/>
+	<true/>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict>
