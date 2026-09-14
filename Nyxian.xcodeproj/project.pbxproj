@@ -313,6 +313,7 @@
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxBuilder.dylib,
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxMacroExpansion.dylib,
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxMacros.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftWarningControl.dylib,
 				CoreCompiler/CoreCompilerSupportLibs/LLVM.xcframework,
 				CoreCompiler/Support/CCDiagnostic.c,
 				CoreCompiler/Support/CCDiagnostic.h,
@@ -504,6 +505,7 @@
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxBuilder.dylib = (CodeSignOnCopy, );
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxMacroExpansion.dylib = (CodeSignOnCopy, );
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxMacros.dylib = (CodeSignOnCopy, );
+				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftWarningControl.dylib = (CodeSignOnCopy, );
 			};
 			buildPhase = 86DCC2922FA520EE00973169 /* Embed Libraries */;
 			membershipExceptions = (
@@ -520,6 +522,7 @@
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxBuilder.dylib,
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxMacroExpansion.dylib,
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxMacros.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftWarningControl.dylib,
 			);
 		};
 		AFF4DBDB2DCA5DEA00B1B5F9 /* Exceptions for "Nyxian" folder in "Embed Libraries" phase from "Nyxian" target */ = {
