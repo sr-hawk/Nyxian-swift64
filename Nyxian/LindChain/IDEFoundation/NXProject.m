@@ -20,6 +20,7 @@
 */
 
 #import <LindChain/IDEFoundation/NXProject.h>
+#import <LindChain/IDEFoundation/NXBootstrap.h>
 #import <LindChain/IDEFoundation/NXCodeTemplate.h>
 #import <LindChain/IDEFoundation/NXUser.h>
 #import <LindChain/IDEFoundation/NXUtils.h>
@@ -31,7 +32,7 @@
 {
     return @[
         @"-target",
-        @"apple-arm64-ios26.5",
+        [@"apple-arm64-ios" stringByAppendingString:NXBOOTSTRAP_SDK_OSVERSION],
         @"-isysroot",
         NXBootstrap.shared.sdkURL.path,
         @"-resource-dir",
@@ -251,7 +252,7 @@
         @"NXDisplayName": name,
         @"NXOrganizationPrefix": organizationIdentifierValue,
         @"NXBundleIdentifier": bundleIdentifierValue,
-        @"NXDeploymentTarget": version.versionString ?: @"26.5",
+        @"NXDeploymentTarget": version.versionString ?: NXBOOTSTRAP_SDK_OSVERSION,
         @"NXClangFlags": NXCompilerFlagsForCodeTemplateLanguage(schemeKind, languageKind),
         @"NXLinkerFlags": @[],
         @"NXSwiftFlags": NXSwiftFlagsForCodeTemplateLanguage(schemeKind, languageKind),

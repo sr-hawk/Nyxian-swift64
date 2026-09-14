@@ -24,8 +24,18 @@
 
 #import <Foundation/Foundation.h>
 
-#define NXBOOTSTRAP_NEWEST_VERSION  29
+#define NXBOOTSTRAP_NEWEST_VERSION  30
 #define NXBOOTSTRAP_CSTEP           (double)(1.0 / NXBOOTSTRAP_NEWEST_VERSION)
+
+/*
+ * the one and only SDK. every path, flag and fallback that
+ * names an SDK version derives from these; nothing else
+ * names one. (MobileDevelopmentKit is a separate framework
+ * and repeats the version string in its own fallback.)
+ */
+#define NXBOOTSTRAP_SDK_OSVERSION   @"27.0"
+#define NXBOOTSTRAP_SDK_NAME        @"iPhoneOS27.0.sdk"
+#define NXBOOTSTRAP_SDK_URL         @"https://nyxian.app/bootstrap/iPhoneOS27.0.sdk.zip"
 
 @interface NXBootstrap : NSObject
 

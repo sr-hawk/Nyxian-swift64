@@ -81,7 +81,7 @@ BOOL PEURLIsContainedIn(NSURL *candidate,
 
 - (NSURL*)sdkURL
 {
-    return [self.rootURL URLByAppendingPathComponent:@"SDK/iPhoneOS27.0.sdk"];
+    return [self.rootURL URLByAppendingPathComponent:[@"SDK/" stringByAppendingString:NXBOOTSTRAP_SDK_NAME]];
 }
 
 - (NSURL*)includeURL
@@ -112,6 +112,78 @@ BOOL PEURLIsContainedIn(NSURL *candidate,
 - (NSURL*)swiftModuleCacheURL
 {
     return [self.rootURL URLByAppendingPathComponent:@"ModuleCache"];
+}
+
+/*
+ * installs the one SDK and leaves nothing else in SDK/.
+ * idempotent: a real, complete NXBOOTSTRAP_SDK_NAME already in
+ * place is kept (no download); every other entry in SDK/ (an
+ * older SDK, a symlink carrying an older name) is removed. the
+ * swift module cache is cleared whenever SDK/ changed under it.
+ */
+- (BOOL)installSDKWithError:(NSError**)error
+{
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSURL *sdkRootURL = [self.rootURL URLByAppendingPathComponent:@"SDK"];
+    NSURL *settingsURL = [self.sdkURL URLByAppendingPathComponent:@"SDKSettings.json"];
+    NSDictionary *attributes = [fm attributesOfItemAtPath:self.sdkURL.path error:nil];
+    BOOL present = attributes != nil
+                && ![attributes[NSFileType] isEqualToString:NSFileTypeSymbolicLink]
+                && [fm fileExistsAtPath:settingsURL.path];
+    BOOL changed = NO;
+    
+    if(!present)
+    {
+        NSLog(@"bootstrapping SDK %@", NXBOOTSTRAP_SDK_NAME);
+        [fm removeItemAtURL:sdkRootURL error:nil];
+        
+        if(!fdownload(NXBOOTSTRAP_SDK_URL, @"sdk.zip"))
+        {
+            if(error) *error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"downloading \"%@\" failed", NXBOOTSTRAP_SDK_URL] }];
+            return NO;
+        }
+        
+        if(!unzipArchiveAtPath([NSTemporaryDirectory() stringByAppendingPathComponent:@"sdk.zip"], sdkRootURL.path))
+        {
+            if(error) *error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: @"extracting \"sdk.zip\" failed" }];
+            return NO;
+        }
+        
+        if(![fm fileExistsAtPath:settingsURL.path])
+        {
+            if(error) *error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"\"sdk.zip\" did not contain %@", NXBOOTSTRAP_SDK_NAME] }];
+            return NO;
+        }
+        
+        changed = YES;
+    }
+    
+    /*
+     * nothing but the one SDK lives in SDK/.
+     */
+    NSArray<NSURL*> *entries = [fm contentsOfDirectoryAtURL:sdkRootURL includingPropertiesForKeys:nil options:0 error:nil];
+    for(NSURL *entry in entries)
+    {
+        if([entry.lastPathComponent isEqualToString:NXBOOTSTRAP_SDK_NAME])
+        {
+            continue;
+        }
+        
+        NSLog(@"removing %@ from SDK/", entry.lastPathComponent);
+        if(![fm removeItemAtURL:entry error:error])
+        {
+            return NO;
+        }
+        
+        changed = YES;
+    }
+    
+    if(changed)
+    {
+        [fm removeItemAtURL:self.swiftModuleCacheURL error:nil];    /* clearing module cache */
+    }
+    
+    return YES;
 }
 
 - (NSURL*)rootfsURL
@@ -318,34 +390,9 @@ BOOL PEURLIsContainedIn(NSURL *candidate,
                  * the SDK is very important to use iOS API which
                  * is very cool.
                  */
-                NSLog(@"bootstrapping SDK");
-                [[NSFileManager defaultManager] removeItemAtURL:[self.rootURL URLByAppendingPathComponent:@"SDK"] error:nil];
-                [[NSFileManager defaultManager] removeItemAtURL:self.swiftModuleCacheURL error:nil];    /* clearing module cache */
-                
-                if(!fdownload(@"https://nyxian.app/bootstrap/iPhoneOS26.5.sdk.zip", @"sdk.zip"))
+                if(![self installSDKWithError:&error])
                 {
-                    error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: @"downloading \"https://nyxian.app/bootstrap/iPhoneOS26.5.sdk.zip\" failed" }];
                     goto report_error;
-                }
-                
-                if(!unzipArchiveAtPath([NSTemporaryDirectory() stringByAppendingPathComponent:@"sdk.zip"], [self.rootURL URLByAppendingPathComponent:@"SDK"].path))
-                {
-                    error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: @"extracting \"sdk.zip\" failed" }];
-                    goto report_error;
-                }
-                
-                NSArray<NSURL*> *symlinkSDKs = @[
-                    [self.rootURL URLByAppendingPathComponent:@"/SDK/iPhoneOS26.2.sdk"],
-                    [self.rootURL URLByAppendingPathComponent:@"/SDK/iPhoneOS26.4.1.sdk"],
-                    [self.rootURL URLByAppendingPathComponent:@"/SDK/iPhoneOS26.4.sdk"]
-                ];
-                
-                for(NSURL *symlink in symlinkSDKs)
-                {
-                    if(![[NSFileManager defaultManager] createSymbolicLinkAtPath:symlink.path withDestinationPath:self.sdkURL.lastPathComponent error:&error])
-                    {
-                        goto report_error;
-                    }
                 }
                 
                 self.version = 27;
@@ -376,42 +423,29 @@ BOOL PEURLIsContainedIn(NSURL *candidate,
             if(self.version < 29)
             {
                 /*
-                 * migrate the default SDK to iPhoneOS27.0.sdk. older SDK
-                 * names (incl. 26.5) stay resolvable via symlinks so
-                 * existing projects keep building.
+                 * the default SDK became iPhoneOS27.0.sdk here.
                  */
-                NSLog(@"bootstrapping SDK");
-                [[NSFileManager defaultManager] removeItemAtURL:[self.rootURL URLByAppendingPathComponent:@"SDK"] error:nil];
-                [[NSFileManager defaultManager] removeItemAtURL:self.swiftModuleCacheURL error:nil];    /* clearing module cache */
-                
-                if(!fdownload(@"https://nyxian.app/bootstrap/iPhoneOS27.0.sdk.zip", @"sdk.zip"))
+                if(![self installSDKWithError:&error])
                 {
-                    error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: @"downloading \"https://nyxian.app/bootstrap/iPhoneOS27.0.sdk.zip\" failed" }];
                     goto report_error;
-                }
-                
-                if(!unzipArchiveAtPath([NSTemporaryDirectory() stringByAppendingPathComponent:@"sdk.zip"], [self.rootURL URLByAppendingPathComponent:@"SDK"].path))
-                {
-                    error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: @"extracting \"sdk.zip\" failed" }];
-                    goto report_error;
-                }
-                
-                NSArray<NSURL*> *symlinkSDKs = @[
-                    [self.rootURL URLByAppendingPathComponent:@"/SDK/iPhoneOS26.2.sdk"],
-                    [self.rootURL URLByAppendingPathComponent:@"/SDK/iPhoneOS26.4.1.sdk"],
-                    [self.rootURL URLByAppendingPathComponent:@"/SDK/iPhoneOS26.4.sdk"],
-                    [self.rootURL URLByAppendingPathComponent:@"/SDK/iPhoneOS26.5.sdk"]
-                ];
-                
-                for(NSURL *symlink in symlinkSDKs)
-                {
-                    if(![[NSFileManager defaultManager] createSymbolicLinkAtPath:symlink.path withDestinationPath:self.sdkURL.lastPathComponent error:&error])
-                    {
-                        goto report_error;
-                    }
                 }
                 
                 self.version = 29;
+            }
+            
+            if(self.version < 30)
+            {
+                /*
+                 * the one SDK, and only it: removes the symlinks v29
+                 * left behind carrying older SDK names, re-checks the
+                 * SDK, and clears the module cache if anything moved.
+                 */
+                if(![self installSDKWithError:&error])
+                {
+                    goto report_error;
+                }
+                
+                self.version = 30;
             }
         }
         
