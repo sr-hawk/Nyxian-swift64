@@ -232,17 +232,16 @@
         }];
     }
     
-    MDKOSVersion *version = MDKOSVersion.hostVersion;
-    MDKOSVersion *minVer = [NXOSVersion.NXOSVersionSupportedBuildVersionsRaw firstObject];
-    MDKOSVersion *maxVer = [NXOSVersion.NXOSVersionSupportedBuildVersionsRaw lastObject];
-    if(minVer != NULL && maxVer != NULL)
+    /*
+     * a new project targets the SDK's newest deployment target
+     * (the one SDK). an unreadable SDK is a failure, never a
+     * substitute value.
+     */
+    MDKOSVersion *version = [NXOSVersion.NXOSVersionSupportedBuildVersionsRaw lastObject];
+    if(version == nil || version.versionString == nil)
     {
-        MDKOSVersionRange range = {
-            .minimumVersion = minVer,
-            .maximumVersion = maxVer,
-        };
-        
-        version = [MDKOSVersion versionForVersion:MDKOSVersion.hostVersion inVersionRange:range];
+        NSLog(@"createProjectAtURL: SDK unreadable, refusing to create a project");
+        return nil;
     }
     
     NSMutableDictionary *projConfigPlist = [NSMutableDictionary dictionaryWithDictionary:@{
@@ -252,7 +251,7 @@
         @"NXDisplayName": name,
         @"NXOrganizationPrefix": organizationIdentifierValue,
         @"NXBundleIdentifier": bundleIdentifierValue,
-        @"NXDeploymentTarget": version.versionString ?: NXBOOTSTRAP_SDK_OSVERSION,
+        @"NXDeploymentTarget": version.versionString,
         @"NXClangFlags": NXCompilerFlagsForCodeTemplateLanguage(schemeKind, languageKind),
         @"NXLinkerFlags": @[],
         @"NXSwiftFlags": NXSwiftFlagsForCodeTemplateLanguage(schemeKind, languageKind),

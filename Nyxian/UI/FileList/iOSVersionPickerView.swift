@@ -40,9 +40,7 @@ fileprivate var _NXOSVersionSupportedBuildVersions: [String] = []
                let supportedVersion = sdk.supportedVersions {
                 return supportedVersion
             }
-            if let fallback = MDKOSVersion(versionString: "27.0") {   /* = NXBOOTSTRAP_SDK_OSVERSION */
-                return [fallback]
-            }
+            /* an unreadable SDK is a failure (the bootstrap and the builder report it), never a substitute */
             return []
         }
     }
@@ -60,7 +58,7 @@ fileprivate var _NXOSVersionSupportedBuildVersions: [String] = []
                 return _NXOSVersionSupportedBuildVersions
             }
             
-            return ["27.0"]   /* = NXBOOTSTRAP_SDK_OSVERSION */
+            return []
         }
     }
 }
@@ -77,7 +75,10 @@ class IOSVersionPickerViewController: UIThemedViewController, UIPickerViewDelega
     private let versions: [String]
     
     init(title: String, selectedVersion: String) {
-        let osVersion: MDKOSVersion = MDKOSVersion(versionString: selectedVersion) ?? MDKOSVersion(versionString: NXOSVersion.NXOSVersionSupportedBuildVersions.last!)!
+        guard let osVersion: MDKOSVersion = MDKOSVersion(versionString: selectedVersion)
+                ?? NXOSVersion.NXOSVersionSupportedBuildVersions.last.flatMap({ MDKOSVersion(versionString: $0) }) else {
+            fatalError("SDK unreadable: no supported deployment targets (the bootstrap is broken)")
+        }
         self.pickerTitle = title
         self.selectedVersion = osVersion.versionString
         self.versions = Self.list(injecting: osVersion)

@@ -106,7 +106,8 @@
     }
     
 failed:
-    return @[[MDKOSVersion versionWithVersionString:@"27.0"]];   /* = NXBOOTSTRAP_SDK_OSVERSION */
+    /* an unreadable SDK is a failure for the caller to report, never a substitute list */
+    return nil;
 }
 
 @end

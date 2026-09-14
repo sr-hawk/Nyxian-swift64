@@ -24,6 +24,8 @@
 #import <LindChain/Downloader/fdownload.h>
 #import <LindChain/ProcEnvironment/Surface/extra/relax.h>
 #import <MobileDevelopmentKit/MDKThreadPool.h>
+#import <MobileDevelopmentKit/MDKSDK.h>
+#import <MobileDevelopmentKit/MDKOSVersion.h>
 #import <UI/XCodeButton.h>
 #import <Nyxian-Swift.h>
 
@@ -181,6 +183,23 @@ BOOL PEURLIsContainedIn(NSURL *candidate,
     if(changed)
     {
         [fm removeItemAtURL:self.swiftModuleCacheURL error:nil];    /* clearing module cache */
+    }
+    
+    /*
+     * the SDK must be readable and must be the one SDK. anything
+     * else is a failure of the bootstrap, never a fallback.
+     */
+    MDKSDK *sdk = [MDKSDK sdkForDirectoryURL:self.sdkURL];
+    if(sdk == nil || sdk.supportedVersions.count == 0 || sdk.version.versionString == nil)
+    {
+        if(error) *error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"%@ is unreadable (no SDKSettings / no deployment targets)", NXBOOTSTRAP_SDK_NAME] }];
+        return NO;
+    }
+    
+    if(![sdk.version.versionString isEqualToString:NXBOOTSTRAP_SDK_OSVERSION])
+    {
+        if(error) *error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"%@ reports version %@, expected %@", NXBOOTSTRAP_SDK_NAME, sdk.version.versionString, NXBOOTSTRAP_SDK_OSVERSION] }];
+        return NO;
     }
     
     return YES;
