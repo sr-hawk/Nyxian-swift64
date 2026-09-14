@@ -81,7 +81,7 @@ BOOL PEURLIsContainedIn(NSURL *candidate,
 
 - (NSURL*)sdkURL
 {
-    return [self.rootURL URLByAppendingPathComponent:@"SDK/iPhoneOS26.5.sdk"];
+    return [self.rootURL URLByAppendingPathComponent:@"SDK/iPhoneOS27.0.sdk"];
 }
 
 - (NSURL*)includeURL
@@ -372,6 +372,46 @@ BOOL PEURLIsContainedIn(NSURL *candidate,
                 ksurface_keychain_update();
                 
                 self.version = 28;
+            }
+            if(self.version < 29)
+            {
+                /*
+                 * migrate the default SDK to iPhoneOS27.0.sdk. older SDK
+                 * names (incl. 26.5) stay resolvable via symlinks so
+                 * existing projects keep building.
+                 */
+                NSLog(@"bootstrapping SDK");
+                [[NSFileManager defaultManager] removeItemAtURL:[self.rootURL URLByAppendingPathComponent:@"SDK"] error:nil];
+                [[NSFileManager defaultManager] removeItemAtURL:self.swiftModuleCacheURL error:nil];    /* clearing module cache */
+                
+                if(!fdownload(@"https://nyxian.app/bootstrap/iPhoneOS27.0.sdk.zip", @"sdk.zip"))
+                {
+                    error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: @"downloading \"https://nyxian.app/bootstrap/iPhoneOS27.0.sdk.zip\" failed" }];
+                    goto report_error;
+                }
+                
+                if(!unzipArchiveAtPath([NSTemporaryDirectory() stringByAppendingPathComponent:@"sdk.zip"], [self.rootURL URLByAppendingPathComponent:@"SDK"].path))
+                {
+                    error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: @"extracting \"sdk.zip\" failed" }];
+                    goto report_error;
+                }
+                
+                NSArray<NSURL*> *symlinkSDKs = @[
+                    [self.rootURL URLByAppendingPathComponent:@"/SDK/iPhoneOS26.2.sdk"],
+                    [self.rootURL URLByAppendingPathComponent:@"/SDK/iPhoneOS26.4.1.sdk"],
+                    [self.rootURL URLByAppendingPathComponent:@"/SDK/iPhoneOS26.4.sdk"],
+                    [self.rootURL URLByAppendingPathComponent:@"/SDK/iPhoneOS26.5.sdk"]
+                ];
+                
+                for(NSURL *symlink in symlinkSDKs)
+                {
+                    if(![[NSFileManager defaultManager] createSymbolicLinkAtPath:symlink.path withDestinationPath:self.sdkURL.lastPathComponent error:&error])
+                    {
+                        goto report_error;
+                    }
+                }
+                
+                self.version = 29;
             }
         }
         
