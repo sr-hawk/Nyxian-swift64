@@ -130,7 +130,13 @@ int LCBootstrapMain(NSString *executablePath,
     appExecutableHandle = guestHandle;
     if(!guestHandle || (uint64_t)guestHandle > 0xf00000000000)
     {
-        printf("%s\n", dlerror());
+        /*
+         * stdout is an empty file table for app launches, so printf alone
+         * loses the reason. NSLog reaches the unified log (idevicesyslog).
+         */
+        const char *reason = dlerror();
+        printf("%s\n", reason ? reason : "(dlerror() returned NULL)");
+        NSLog(@"[LCBootstrap] dlopen(%@) failed: %s", executablePath, reason ? reason : "(dlerror() returned NULL)");
         return 1;
     }
     
@@ -140,7 +146,11 @@ int LCBootstrapMain(NSString *executablePath,
     {
         entry = dlsym(guestHandle, "main");
     }
-    assert(entry);
+    if(entry == NULL)
+    {
+        NSLog(@"[LCBootstrap] no entry point in %@", executablePath);
+        return 1;
+    }
     
     /*
      * now we load the executable of the bundle, as it doesn't
