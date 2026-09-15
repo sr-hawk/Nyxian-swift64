@@ -23,6 +23,7 @@
  */
 
 #include <CoreCompiler/CCSDK.h>
+#include <limits.h>
 #include <clang/Basic/DarwinSDKInfo.h>
 #include <llvm/Support/VirtualFileSystem.h>
 
@@ -91,15 +92,23 @@ CCSDKRef CCSDKCreateWithDirectoryURL(CFAllocatorRef allocator,
         return nullptr;
     }
     
-    CFStringRef pathStr = CFURLGetString(directoryURL);
+    /*
+     * clang wants a filesystem PATH. CFURLGetString would hand it the
+     * URL string ("file:///private/var/...") — clang then finds no
+     * SDKSettings.json, sdkInfo stays null, and CCSDKCopyVersion
+     * dereferences it (measured: SIGSEGV at 0x20, 2026-09-14).
+     */
+    CFStringRef pathStr = CFURLCopyFileSystemPath(directoryURL, kCFURLPOSIXPathStyle);
     if(pathStr == nullptr)
     {
         CFRelease(sdkRef);
         return nullptr;
     }
     
-    const char *cPathStr = CFStringGetCStringPtr(pathStr, kCFStringEncodingUTF8);
-    if(cPathStr == nullptr)
+    char cPathBuf[PATH_MAX];
+    Boolean gotPath = CFStringGetCString(pathStr, cPathBuf, sizeof(cPathBuf), kCFStringEncodingUTF8);
+    CFRelease(pathStr);
+    if(!gotPath)
     {
         CFRelease(sdkRef);
         return nullptr;
@@ -107,7 +116,7 @@ CCSDKRef CCSDKCreateWithDirectoryURL(CFAllocatorRef allocator,
     
     auto result = clang::parseDarwinSDKInfo(
         *llvm::vfs::getRealFileSystem(),
-        std::string(cPathStr)
+        std::string(cPathBuf)
     );
     
     if(!result)
@@ -131,6 +140,12 @@ CCSDKRef CCSDKCreateWithDirectoryURL(CFAllocatorRef allocator,
 
 CFStringRef CCSDKCopyVersion(CCSDKRef sdk)
 {
+    if(sdk == nullptr || sdk->sdkInfo == nullptr)
+    {
+        /* not an SDK directory: no version, the caller reports it */
+        return nullptr;
+    }
+    
     VersionTuple versionTuple = sdk->sdkInfo->getVersion();
     std::string versionStr = versionTuple.getAsString();
     if(versionStr.empty())
@@ -154,6 +169,11 @@ CFURLRef CCSDKGetDirectoryURL(CCSDKRef sdk)
 
 CCSDKOSType CCSDKGetOSType(CCSDKRef sdk)
 {
+    if(sdk == nullptr || sdk->sdkInfo == nullptr)
+    {
+        return CCSDKOSTypeUnknown;
+    }
+    
     switch(sdk->sdkInfo->getOS())
     {
         case Triple::OSType::Darwin:
