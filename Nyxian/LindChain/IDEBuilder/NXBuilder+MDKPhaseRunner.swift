@@ -43,6 +43,18 @@ extension NXBuilder: MDKPhaseRunnerDelegate {
             } else {
                 self.database.appendDebug(synItems: diagnostics)
             }
+        } else if !success {
+            // A job that dies without structured output used to vanish from the Issue Navigator
+            // (measured 2026-09-14: the Swift frontend exits before any diagnostic when a module fails to
+            // load). Record the failure with the job's arguments so it is never silent.
+            let source = mainSource
+                ?? job.arguments.last(where: { $0.hasSuffix(".swift") || $0.hasSuffix(".m") || $0.hasSuffix(".mm") || $0.hasSuffix(".c") || $0.hasSuffix(".cpp") })
+                ?? self.project.url.path
+            let kind = job.type == .linker ? "Linker" : "Compiler"
+            let location = MDKFileSourceLocation(fileURL: URL(fileURLWithPath: source), withSourceLocation: CCSourceLocation())
+            let item = MDKDiagnostic(type: .unknown, level: .error, mainSource: source, fileSourceLocation: location,
+                                     message: "\(kind) job failed without producing diagnostics (the frontend exited early, e.g. a module could not be loaded). Arguments: \(job.arguments.joined(separator: " "))")
+            self.database.addDiagnosticMessages(title: kind, items: [item], clearPrevious: false)
         }
     }
 }

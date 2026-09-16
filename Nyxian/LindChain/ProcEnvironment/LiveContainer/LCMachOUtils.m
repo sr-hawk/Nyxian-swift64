@@ -249,6 +249,38 @@ static void LCInsertDylibCommand(LCMachO *machO,
     machO->header->sizeofcmds += dylib->cmdsize;
 }
 
+bool LCEnsureLinkeditSlack(const char *path, uint64_t slack)
+{
+    LCMachO *machO = LCMapMachO(path, false);
+    if(machO == NULL || machO->ro)
+    {
+        if(machO) LCUnmapMachO(machO);
+        return false;
+    }
+    bool changed = false;
+    struct load_command *command = (struct load_command *)((uint8_t*)machO->header + sizeof(struct mach_header_64));
+    for(uint32_t i = 0; i < machO->header->ncmds; i++)
+    {
+        if(command->cmd == LC_SEGMENT_64)
+        {
+            struct segment_command_64 *seg = (struct segment_command_64 *)command;
+            if(strcmp(seg->segname, "__LINKEDIT") == 0)
+            {
+                uint64_t want = (seg->filesize + slack + 0x3fff) & ~(uint64_t)0x3fff;
+                if(seg->vmsize < want)
+                {
+                    seg->vmsize = want;
+                    changed = true;
+                }
+                break;
+            }
+        }
+        command = (struct load_command *)((uint8_t*)command + command->cmdsize);
+    }
+    LCUnmapMachO(machO);
+    return changed;
+}
+
 bool LCPatchExecSlice(LCMachO *machO)
 {
     if(machO->ro)

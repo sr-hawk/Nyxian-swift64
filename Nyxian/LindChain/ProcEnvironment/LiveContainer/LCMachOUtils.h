@@ -42,6 +42,12 @@ typedef struct {
 } LCMachO;
 
 LCMachO *LCMapMachO(const char *path, bool readOnly);
+/*
+ * gives __LINKEDIT room to grow: vmsize = page-rounded(filesize + slack)
+ * when it is smaller than that. returns true if the file was changed.
+ * idempotent. run once after linking, before any code signing.
+ */
+bool LCEnsureLinkeditSlack(const char *path, uint64_t slack);
 LCMachO *LCMapMachOFromFDRO(int fd);
 void LCUnmapMachO(LCMachO *machO);
 

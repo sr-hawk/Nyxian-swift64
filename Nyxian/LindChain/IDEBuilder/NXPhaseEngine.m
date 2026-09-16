@@ -68,6 +68,16 @@
     if([swiftFiles count] != 0)
     {
         [driverFlags addObjectsFromArray:project.projectConfig.swiftFlags];
+        /*
+         * the in-process (legacy) swift driver leaves cross-import
+         * overlays off, unlike swift-driver; without this, SwiftUI
+         * extensions like .photosPicker / .translationTask resolve
+         * only with an explicit import of _PhotosUI_SwiftUI etc.
+         */
+        if(![driverFlags containsObject:@"-enable-cross-import-overlays"])
+        {
+            [driverFlags addObject:@"-enable-cross-import-overlays"];
+        }
         [driverFlags addObject:@"-module-name"];
         [driverFlags addObject:NXMakeContentCodeFriendly(project.projectConfig.displayName)];
         return [super initWithSwiftFlags:driverFlags withOtherClangFlags:project.projectConfig.compilerFlags withOtherLinkerFlags:project.projectConfig.linkerFlags];

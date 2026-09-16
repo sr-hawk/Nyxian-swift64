@@ -141,6 +141,12 @@ final class NXBuilder: NSObject {
         if !self.phaseRunner.runPhases() {
             throw NSError(domain: "com.cr4zy.nyxian.builder.runner", code: 1, userInfo: [NSLocalizedDescriptionKey:"Failed to run project."])
         }
+        // The linker leaves __LINKEDIT with vmsize == filesize. Every later signer (Nyxian's own, xtool,
+        // zsign, SideStore) grows the signature blob; without slack dyld rejects the binary at launch
+        // ("segment __LINKEDIT filesize exceeds vmsize", measured 2026-09-08). Pad once, here, before any signing.
+        if self.project.projectConfig.schemeKind == .app || self.project.projectConfig.schemeKind == .utility {
+            _ = LCEnsureLinkeditSlack(self.project.machoURL.path, 0x40000)
+        }
         
         do {
             try self.argsString.write(to: self.project.cacheURL.appendingPathComponent("args.txt"), atomically: false, encoding: .utf8)
