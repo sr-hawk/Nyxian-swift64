@@ -36,13 +36,12 @@
 #define NXBOOTSTRAP_SDK_OSVERSION   @"27.0"
 #define NXBOOTSTRAP_SDK_NAME        @"iPhoneOS27.0.sdk"
 /*
- * the SDK ships INSIDE this app (Shared/sdk/, a folder reference, filled
- * by CI from the fork's "sdk" release asset). sdk.build holds the SDK's
- * ProductBuildVersion; the bootstrap replaces the installed SDK whenever
- * it differs. nothing is downloaded from nyxian.app for the SDK.
+ * the SDK is installed LOCALLY by the owner: the folder
+ * Documents/SDK/iPhoneOS27.0.sdk is copied onto the device from
+ * the owner's own machines (USB / Files). Nothing is bundled and
+ * nothing is downloaded. The bootstrap only verifies and prunes;
+ * building without an installed SDK fails with a precise message.
  */
-#define NXBOOTSTRAP_SDK_ZIP         @"Shared/sdk/iPhoneOS27.0.sdk.zip"
-#define NXBOOTSTRAP_SDK_BUILD_FILE  @"Shared/sdk/sdk.build"
 
 @interface NXBootstrap : NSObject
 

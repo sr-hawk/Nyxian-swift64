@@ -11,6 +11,3 @@ Nyxian/LindChain/JBSupport/tshelper
 *.xcuserstate
 xcuserdata/
 Shared/kernel
-
-# bundled SDK is fetched by CI from the sdk release, never committed
-Shared/sdk/

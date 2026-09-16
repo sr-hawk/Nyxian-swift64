@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   # Swift snapshot the LLVM-On-iOS toolchain is built from.
@@ -115,6 +115,13 @@ jobs:
         with:
           path: Frameworks/CoreCompiler/CoreCompilerSupportLibs
           key: ${{ steps.tc.outputs.key }}
+
+      - name: Install Dependencies
+        run: |
+          set -e
+
+          # Packages we desperately need
+          brew install ldid dpkg libarchive
 
       # Private repositories bill macOS minutes at 10x and cannot afford the 4-5 h toolchain
       # build. When the cache is empty, take the toolchain that the public repository exported

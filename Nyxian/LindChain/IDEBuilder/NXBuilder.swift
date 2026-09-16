@@ -93,7 +93,7 @@ final class NXBuilder: NSObject {
         // Nyxian requirement check: the SDK is the only source of the supported range; unreadable is a failure
         guard let minimumOSVersion: MDKOSVersion = NXOSVersion.NXOSVersionSupportedBuildVersions.first.flatMap({ MDKOSVersion(versionString: $0) }),
               let maximumOSVersion: MDKOSVersion = NXOSVersion.NXOSVersionSupportedBuildVersions.last.flatMap({ MDKOSVersion(versionString: $0) }) else {
-            throw NSError(domain: "com.cr4zy.nyxian.builder.headsup", code: 1, userInfo: [NSLocalizedDescriptionKey:"The SDK at \(NXBootstrap.shared().sdkURL.path) is unreadable (no supported deployment targets). The bootstrap is broken; reinstall it."])
+            throw NSError(domain: "com.cr4zy.nyxian.builder.headsup", code: 1, userInfo: [NSLocalizedDescriptionKey:"No usable SDK at \(NXBootstrap.shared().sdkURL.path). Copy the iPhoneOS27.0.sdk folder into Nyxian's Documents/SDK (USB or Files), then build again."])
         }
         if osVersionNeeded < minimumOSVersion || osVersionNeeded > maximumOSVersion {
             throw NSError(domain: "com.cr4zy.nyxian.builder.headsup", code: 1, userInfo: [NSLocalizedDescriptionKey:"Target \"\(self.project.projectConfig.displayName ?? "Unknown") (\(self.project.projectConfig.bundleid ?? "Unknown"))\" declares deployment target \(osVersionNeeded) which is not supported by this version of Nyxian. This version of Nyxian supports \(minimumOSVersion) up to \(maximumOSVersion)."])
