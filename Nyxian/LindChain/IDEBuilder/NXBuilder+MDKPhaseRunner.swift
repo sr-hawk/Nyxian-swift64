@@ -51,9 +51,11 @@ extension NXBuilder: MDKPhaseRunnerDelegate {
                 ?? job.arguments.last(where: { $0.hasSuffix(".swift") || $0.hasSuffix(".m") || $0.hasSuffix(".mm") || $0.hasSuffix(".c") || $0.hasSuffix(".cpp") })
                 ?? self.project.url.path
             let kind = job.type == .linker ? "Linker" : "Compiler"
-            let location = MDKFileSourceLocation(fileURL: URL(fileURLWithPath: source), withSourceLocation: CCSourceLocation())
-            let item = MDKDiagnostic(type: .unknown, level: .error, mainSource: source, fileSourceLocation: location,
-                                     message: "\(kind) job failed without producing diagnostics (the frontend exited early, e.g. a module could not be loaded). Arguments: \(job.arguments.joined(separator: " "))")
+            guard let location = MDKFileSourceLocation(fileURL: URL(fileURLWithPath: source), with: CCSourceLocation()),
+                  let item = MDKDiagnostic(type: .unknown, level: .error, mainSource: source, fileSourceLocation: location,
+                                           message: "\(kind) job failed without producing diagnostics (the frontend exited early, e.g. a module could not be loaded). Arguments: \(job.arguments.joined(separator: " "))") else {
+                return
+            }
             self.database.addDiagnosticMessages(title: kind, items: [item], clearPrevious: false)
         }
     }
