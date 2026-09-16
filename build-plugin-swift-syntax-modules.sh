@@ -93,13 +93,92 @@ for c in "${CANDIDATES[@]}"; do
 done
 [[ -n "${RAW_SWIFTC}" ]] || die "no macOS-executable snapshot swiftc found"
 
+# Measured live, CI run 35094974426: a bin-only copy
+# (`cp -a "${RAW_SWIFTC_BINDIR}/." "${SWIFTC_CACHE_DIR}/bin/"`) is NOT
+# relocatable -- the copied swiftc printed "Unable to locate libSwiftScan.
+# Fallback to `swift-frontend` dependency scanner invocation." (so the
+# binary itself launched fine -- not a top-level dyld failure) and then
+# still failed `-version`. Root-caused by reading LLVM-On-iOS's OWN proven
+# working recipe for this exact problem: `Scripts/build-swift-toolchain.sh`
+# assembles the iOS-side install the SAME way (raw CMake build dir ->
+# clean relocatable directory) in `copy_ios_install()`'s manual-assembly
+# branch, and that recipe copies `bin/`, `include/`, `share/`, `lib/swift/`,
+# `lib/cmake/` plus top-level `lib/*.{a,dylib,tbd}` -- not bin/ alone -- and
+# then runs `materialize_required_symlinks()`, which dereferences and
+# hard-copies specifically `bin/swift`/`bin/swiftc`/`bin/clang(++|-cpp)`
+# when they are RELATIVE symlinks (confirmed live in this same log: "--
+# Pointing 'swift' and 'swiftc' symlinks at 'swift-driver'."). That
+# swift-driver binary needs `../lib/swift/macosx/*.dylib` (libswiftCore
+# etc, the standard rpath-relative-to-executable layout every real Swift
+# toolchain uses) which a bin-only copy never brought along -- that missing
+# sibling tree is what made the copy non-relocatable, not the symlink
+# itself. This reuses that exact proven recipe verbatim, pointed at
+# swift-macosx-arm64 (the host build) instead of swift-iphoneos-arm64 (the
+# on-device build `copy_ios_install()` already handles) -- no separate
+# llvm-macosx-arm64 merge needed here because the log confirms this
+# specific build already symlinks Clang resource headers INTO
+# swift-macosx-arm64/lib/swift/clang itself ("Symlinking Clang resource
+# headers into .../swift-macosx-arm64/./lib/swift/clang").
+copy_tree() {
+    local source="$1" destination="$2"
+    if [[ -d "${source}" ]]; then
+        mkdir -p "${destination}"
+        cp -a "${source}/." "${destination}/"
+    fi
+}
+
+copy_top_level_libs() {
+    local source="$1" destination="$2"
+    if [[ -d "${source}" ]]; then
+        mkdir -p "${destination}"
+        find "${source}" -maxdepth 1 -type f \( -name '*.a' -o -name '*.dylib' -o -name '*.tbd' \) -exec cp -a {} "${destination}/" \;
+    fi
+}
+
+materialize_required_symlinks() {
+    local root="$1" link_path link_target resolved_target tmp_path relative_path
+    while IFS= read -r link_path; do
+        link_target="$(readlink "${link_path}")"
+        relative_path="${link_path#"${root}/"}"
+        if [[ "${link_target}" != /* ]]; then
+            case "${relative_path}" in
+                bin/swift|bin/swiftc|bin/clang|bin/clang++|bin/clang-cpp) ;;
+                *) continue ;;
+            esac
+        fi
+        if [[ "${link_target}" = /* ]]; then
+            resolved_target="${link_target}"
+        else
+            resolved_target="$(cd "$(dirname "${link_path}")" && pwd)/${link_target}"
+        fi
+        [[ -e "${resolved_target}" ]] || die "symlink target does not exist: ${link_path} -> ${link_target}"
+        tmp_path="${link_path}.materialized"
+        rm -rf "${tmp_path}"
+        cp -aL "${resolved_target}" "${tmp_path}"
+        rm -f "${link_path}"
+        mv "${tmp_path}" "${link_path}"
+    done < <(find "${root}" -type l -print)
+}
+
 RAW_SWIFTC_BINDIR="$(dirname "${RAW_SWIFTC}")"
+RAW_SWIFTC_ROOT="$(dirname "${RAW_SWIFTC_BINDIR}")"
 rm -rf "${SWIFTC_CACHE_DIR}"
-mkdir -p "${SWIFTC_CACHE_DIR}/bin"
-cp -a "${RAW_SWIFTC_BINDIR}/." "${SWIFTC_CACHE_DIR}/bin/"
+mkdir -p "${SWIFTC_CACHE_DIR}"
+
+copy_tree "${RAW_SWIFTC_ROOT}/bin"       "${SWIFTC_CACHE_DIR}/bin"
+copy_tree "${RAW_SWIFTC_ROOT}/include"   "${SWIFTC_CACHE_DIR}/include"
+copy_tree "${RAW_SWIFTC_ROOT}/share"     "${SWIFTC_CACHE_DIR}/share"
+copy_tree "${RAW_SWIFTC_ROOT}/lib/swift" "${SWIFTC_CACHE_DIR}/lib/swift"
+copy_tree "${RAW_SWIFTC_ROOT}/lib/clang" "${SWIFTC_CACHE_DIR}/lib/clang"
+copy_tree "${RAW_SWIFTC_ROOT}/lib/cmake" "${SWIFTC_CACHE_DIR}/lib/cmake"
+copy_top_level_libs "${RAW_SWIFTC_ROOT}/lib" "${SWIFTC_CACHE_DIR}/lib"
+materialize_required_symlinks "${SWIFTC_CACHE_DIR}"
+
 SWIFTC="${SWIFTC_CACHE_DIR}/bin/swiftc"
 [[ -x "${SWIFTC}" ]] || die "copied swiftc is not executable at ${SWIFTC}"
-"${SWIFTC}" -version >/dev/null || die "copied swiftc at ${SWIFTC} does not run -- relocation broke it (rpath/relative-path dependency?)"
+log "size of cached swiftc tree:"
+du -sh "${SWIFTC_CACHE_DIR}" 2>&1 || true
+"${SWIFTC}" -version || die "copied swiftc at ${SWIFTC} does not run -- relocation still broken even with lib/swift + symlink materialization (see this script's own comment above for what was already tried)"
 log "cached swiftc at ${SWIFTC}, confirmed runnable after the copy"
 
 rm -rf "${MODULES_OUT}"

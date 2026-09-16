@@ -60,7 +60,28 @@ env:
   # shipped dylibs -- see build-plugin-swift-syntax-modules.sh. Its
   # outputs (a cached macOS swiftc copy + the built .swiftmodule files)
   # are new files in the cached directory, so the key changes again.
-  CACHE_EPOCH: v5
+  # v5 -> v6 (2026-09-16, same day): v5's cached swiftc copy was itself
+  # broken. Measured live, CI run 35094974426: `cp -a` of just
+  # host-swiftc-macos/bin/ produced a swiftc that launched (printed its own
+  # "Unable to locate libSwiftScan" fallback notice -- not a dyld crash)
+  # but then failed `-version` outright -- "relocation broke it". The v5
+  # cache ALREADY has this broken copy saved (Save CoreCompiler support
+  # libs runs `if: always()`, so it saved even though the job failed), so
+  # a v5 cache HIT would keep serving the same broken swiftc forever --
+  # Stage A (which does the copying) only runs inside the
+  # no-prerequisites CoreCompilerSupportLibs directory recipe, so it does
+  # NOT rerun on a cache hit. This bump is therefore unavoidable, not
+  # optional: there is no cheap path to a working cached swiftc from here.
+  # Fix (build-plugin-swift-syntax-modules.sh): copy the same
+  # bin/include/share/lib-swift/lib-cmake/top-level-libs subset (plus
+  # `materialize_required_symlinks` for bin/swiftc -> swift-driver) that
+  # LLVM-On-iOS's OWN `Scripts/build-swift-toolchain.sh`
+  # `copy_ios_install()` already uses -- proven live in this exact run's
+  # log to produce a working relocated copy for the iOS side of the same
+  # build; this reuses that recipe verbatim for the macOS host side
+  # instead of re-guessing. New content (lib/swift/macosx's dylibs etc.)
+  # in the cached directory, so the key must change again.
+  CACHE_EPOCH: v6
 
 jobs:
   build:
