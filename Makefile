@@ -107,11 +107,24 @@ all: FILE := Nyxian.ipa
 all: clean check compile package-app clean
 
 # Dependencies
+# NOTE (macro plugin support): LLVM-On-iOS's own Makefile only bundles the
+# lib_Compiler*.dylib files into CoreCompilerSupportLibs -- the .swiftmodule/
+# .swiftdoc/.swiftinterface files for those same _Compiler* modules exist
+# right next to them in LLVM-On-iOS/SwiftToolchain-iphoneos/lib/swift/host/
+# compiler/ but are never copied out. Nothing outside that directory can
+# `import _CompilerSwiftSyntax` etc. (needed to build a -load-plugin-library
+# macro plugin against the compiler's own in-process module set) without
+# them. Copy the whole host/compiler tree alongside the dylibs so it rides
+# in the same cached CoreCompilerSupportLibs directory build.yml already
+# saves/restores -- this is the "least-cost path" from the plugin-support
+# plan, not a functional change to the app build itself.
 Frameworks/CoreCompiler/CoreCompilerSupportLibs:
 	cd LLVM-On-iOS; $(MAKE)
 	rm -rf Frameworks/CoreCompiler/CoreCompilerSupportLibs/
 	cp -r LLVM-On-iOS/CoreCompilerSupportLibs Frameworks/CoreCompiler/CoreCompilerSupportLibs/
 	cp -r LLVM-On-iOS/LLVM.xcframework Frameworks/CoreCompiler/CoreCompilerSupportLibs/LLVM.xcframework
+	rm -rf Frameworks/CoreCompiler/CoreCompilerSupportLibs/host-compiler-modules
+	cp -a LLVM-On-iOS/SwiftToolchain-iphoneos/lib/swift/host/compiler Frameworks/CoreCompiler/CoreCompilerSupportLibs/host-compiler-modules
 
 # Helper
 update-config:

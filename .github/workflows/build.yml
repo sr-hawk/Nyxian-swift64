@@ -30,7 +30,15 @@ env:
   # This value is part of the cache key, so changing it rebuilds automatically.
   LLVM_TARGETS: AArch64;ARM
   # Bump to throw away a bad toolchain cache without touching anything else.
-  CACHE_EPOCH: v2
+  # v2 -> v3 (2026-09): the Makefile's CoreCompilerSupportLibs rule now also
+  # copies lib/swift/host/compiler's .swiftmodule/.swiftdoc/.swiftinterface
+  # files (needed to build the SwiftUIMacros plugin against _CompilerSwift*)
+  # alongside the dylibs it already bundled. That cache directory is content
+  # from a run before this change, so the key must change too or the cache
+  # hit skips the whole toolchain build and the plugin has nothing to link.
+  # One-time cost: a full LLVM-On-iOS toolchain rebuild (~4-5h) on the next
+  # push, same as any other CACHE_EPOCH bump.
+  CACHE_EPOCH: v3
 
 jobs:
   build:

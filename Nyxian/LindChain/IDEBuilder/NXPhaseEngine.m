@@ -78,6 +78,29 @@
         {
             [driverFlags addObject:@"-enable-cross-import-overlays"];
         }
+        /*
+         * iOS 27's SwiftUICore declares @State (and friends) as a
+         * compiler-plugin macro (module "SwiftUIMacros"), not a plain
+         * property wrapper anymore. Nyxian's frontend runs in-process, so
+         * only an in-process LIBRARY plugin works (-load-plugin-library);
+         * out-of-process executable plugins (-plugin-path,
+         * -external-plugin-path) are not usable on iOS at all. This is
+         * Nyxian's OWN macro implementation (NyxianMacros target, product
+         * module name "SwiftUIMacros" -- the frontend resolves
+         * #externalMacro(module:type:) purely by that string, so the
+         * plugin's module name has to match the SDK's declaration, not
+         * Nyxian's own project naming), embedded at Frameworks/
+         * libSwiftUIMacros.dylib next to the rest of the app's frameworks.
+         */
+        NSString *swiftUIMacrosPluginPath = [NSBundle.mainBundle.privateFrameworksURL URLByAppendingPathComponent:@"libSwiftUIMacros.dylib"].path;
+        if(swiftUIMacrosPluginPath != nil && [NSFileManager.defaultManager fileExistsAtPath:swiftUIMacrosPluginPath])
+        {
+            if(![driverFlags containsObject:@"-load-plugin-library"])
+            {
+                [driverFlags addObject:@"-load-plugin-library"];
+                [driverFlags addObject:swiftUIMacrosPluginPath];
+            }
+        }
         [driverFlags addObject:@"-module-name"];
         [driverFlags addObject:NXMakeContentCodeFriendly(project.projectConfig.displayName)];
         return [super initWithSwiftFlags:driverFlags withOtherClangFlags:project.projectConfig.compilerFlags withOtherLinkerFlags:project.projectConfig.linkerFlags];

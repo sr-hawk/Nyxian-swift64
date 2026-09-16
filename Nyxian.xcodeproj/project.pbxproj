@@ -40,6 +40,7 @@
 		AF99195B2DC9176900DDF895 /* TreeSitterC in Frameworks */ = {isa = PBXBuildFile; productRef = AF99195A2DC9176900DDF895 /* TreeSitterC */; };
 		AFF4D5D92DC9390B00B1B5F9 /* Shared in Resources */ = {isa = PBXBuildFile; fileRef = AF99171F2DC8EA3C00DDF895 /* Shared */; };
 		AFF4E3492DCCCE0F00B1B5F9 /* TreeSitterXML in Frameworks */ = {isa = PBXBuildFile; productRef = AFF4E3482DCCCE0F00B1B5F9 /* TreeSitterXML */; };
+		A0554E774D5298B7C4C96E3F /* libSwiftUIMacros.dylib in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9126D06431E3D520063ABBF5 /* libSwiftUIMacros.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -99,6 +100,13 @@
 			remoteGlobalIDString = 8FF32DEC3036F59E00C46FE4;
 			remoteInfo = HWHook;
 		};
+		84C1C347E53A4243ABE094F4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AF9916D12DC8C42200DDF895 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9E3628053DB9529C07B0EC74;
+			remoteInfo = NyxianMacros;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -139,6 +147,7 @@
 			dstSubfolderSpec = 10;
 			files = (
 				8FB3BB053030089000DB3ABC /* LiveShim.framework in Embed Frameworks */,
+				A0554E774D5298B7C4C96E3F /* libSwiftUIMacros.dylib in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -186,6 +195,7 @@
 		8FF32DED3036F59E00C46FE4 /* libHWHook.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libHWHook.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		8FF346DD3039AA7000C46FE4 /* ksurface_abi.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ksurface_abi.h; sourceTree = "<group>"; };
 		AF99171F2DC8EA3C00DDF895 /* Shared */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Shared; sourceTree = "<group>"; };
+		9126D06431E3D520063ABBF5 /* libSwiftUIMacros.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libSwiftUIMacros.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -576,6 +586,11 @@
 			path = Nyxian;
 			sourceTree = "<group>";
 		};
+		0FEA126B1CE45325052ED474 /* NyxianMacros */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = NyxianMacros;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -653,6 +668,13 @@
 				8F60051D3033DD2F0028EDFD /* UIOnboarding in Frameworks */,
 				AFF4E3492DCCCE0F00B1B5F9 /* TreeSitterXML in Frameworks */,
 				793A7E502EB5996A0044418E /* SwiftTerm in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DA936E297644D45D796F434E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -866,6 +888,7 @@
 				8FB3BE8C303131D800DB3ABC /* PBXTargetDependency */,
 				8F60087A3033F9200028EDFD /* PBXTargetDependency */,
 				8FD30F273044E7390059AE9A /* PBXTargetDependency */,
+				A2D7BB7E8C6E93832EAE680E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				AF9916DB2DC8C42200DDF895 /* Nyxian */,
@@ -894,6 +917,27 @@
 			productName = LindDE;
 			productReference = 7944B5652DEC74EA00834134 /* Nyxian.app */;
 			productType = "com.apple.product-type.application";
+		};
+		9E3628053DB9529C07B0EC74 /* NyxianMacros */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 93B04C2A9F7498E68AAC6D77 /* Build configuration list for PBXNativeTarget "NyxianMacros" */;
+			buildPhases = (
+				15490666D97A5EC63C40F2FB /* Sources */,
+				DA936E297644D45D796F434E /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				0FEA126B1CE45325052ED474 /* NyxianMacros */,
+			);
+			name = NyxianMacros;
+			packageProductDependencies = (
+			);
+			productName = NyxianMacros;
+			productReference = 9126D06431E3D520063ABBF5 /* libSwiftUIMacros.dylib */;
+			productType = "com.apple.product-type.library.dynamic";
 		};
 /* End PBXNativeTarget section */
 
@@ -955,6 +999,7 @@
 			projectRoot = "";
 			targets = (
 				AF9916D82DC8C42200DDF895 /* Nyxian */,
+				9E3628053DB9529C07B0EC74 /* NyxianMacros */,
 				79BF97F62E6291EE00C60D4C /* LiveProcess */,
 				860D91742FAE1F95000D321B /* MobileDevelopmentKit */,
 				86DCC2592FA5209600973169 /* CoreCompiler */,
@@ -1054,6 +1099,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		15490666D97A5EC63C40F2FB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1097,6 +1149,12 @@
 			isa = PBXTargetDependency;
 			target = 8FF32DEC3036F59E00C46FE4 /* HWHook */;
 			targetProxy = 8FF32E2E3036F8DC00C46FE4 /* PBXContainerItemProxy */;
+		};
+		A2D7BB7E8C6E93832EAE680E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = 9E3628053DB9529C07B0EC74 /* NyxianMacros */;
+			targetProxy = 84C1C347E53A4243ABE094F4 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1885,6 +1943,91 @@
 			};
 			name = Release;
 		};
+		73CE29B68DEB28FBA80F42C2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks/CoreCompiler/CoreCompilerSupportLibs",
+				);
+				MACH_O_TYPE = mh_dylib;
+				OTHER_LDFLAGS = (
+					"-l_CompilerSwiftSyntax",
+					"-l_CompilerSwiftSyntaxMacros",
+					"-l_CompilerSwiftSyntaxBuilder",
+					"-l_CompilerSwiftDiagnostics",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.cr4zy.SwiftUIMacros;
+				PRODUCT_MODULE_NAME = SwiftUIMacros;
+				PRODUCT_NAME = SwiftUIMacros;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/Frameworks/CoreCompiler/CoreCompilerSupportLibs/host-compiler-modules";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		84AEC7D26DAE568FC2578B6C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks/CoreCompiler/CoreCompilerSupportLibs",
+				);
+				MACH_O_TYPE = mh_dylib;
+				OTHER_LDFLAGS = (
+					"-l_CompilerSwiftSyntax",
+					"-l_CompilerSwiftSyntaxMacros",
+					"-l_CompilerSwiftSyntaxBuilder",
+					"-l_CompilerSwiftDiagnostics",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.cr4zy.SwiftUIMacros;
+				PRODUCT_MODULE_NAME = SwiftUIMacros;
+				PRODUCT_NAME = SwiftUIMacros;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/Frameworks/CoreCompiler/CoreCompilerSupportLibs/host-compiler-modules";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1956,6 +2099,15 @@
 			buildConfigurations = (
 				AF9916E82DC8C42400DDF895 /* Debug */,
 				AF9916E92DC8C42400DDF895 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		93B04C2A9F7498E68AAC6D77 /* Build configuration list for PBXNativeTarget "NyxianMacros" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				73CE29B68DEB28FBA80F42C2 /* Debug */,
+				84AEC7D26DAE568FC2578B6C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
