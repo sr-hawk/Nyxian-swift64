@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   # Swift snapshot the LLVM-On-iOS toolchain is built from.
@@ -123,14 +123,18 @@ jobs:
           # Packages we desperately need
           brew install ldid dpkg libarchive
 
-      # The iOS SDK the app carries: the fork's "sdk" release holds iPhoneOS27.0.sdk.zip
-      # (packed from the Xcode beta matching the phone). sdk.build is derived from the zip.
-      - name: Fetch bundled SDK
+      # The iOS SDK the app carries lives in a DRAFT release named "sdk" (tag sdk) on this
+      # repository: never published, never public, reachable only with push access or this
+      # workflow's own token. Packed from the Xcode beta matching the phone; sdk.build is
+      # derived from the zip's SystemVersion.plist.
+      - name: Fetch bundled SDK (draft release)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p Shared/sdk
-          curl -fsSL -o Shared/sdk/iPhoneOS27.0.sdk.zip \
-            "https://github.com/${GITHUB_REPOSITORY}/releases/download/sdk/iPhoneOS27.0.sdk.zip"
+          gh release download sdk --repo "$GITHUB_REPOSITORY" --pattern 'iPhoneOS27.0.sdk.zip' \
+            --dir Shared/sdk --clobber
           unzip -p Shared/sdk/iPhoneOS27.0.sdk.zip iPhoneOS27.0.sdk/System/Library/CoreServices/SystemVersion.plist > /tmp/sv.plist
           plutil -extract ProductBuildVersion raw -o - /tmp/sv.plist | tr -d '\n' > Shared/sdk/sdk.build
           echo "bundled SDK build: $(cat Shared/sdk/sdk.build), $(stat -f %z Shared/sdk/iPhoneOS27.0.sdk.zip) bytes"
