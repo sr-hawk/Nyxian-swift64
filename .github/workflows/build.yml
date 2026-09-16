@@ -123,6 +123,18 @@ jobs:
           # Packages we desperately need
           brew install ldid dpkg libarchive
 
+      # The iOS SDK the app carries: the fork's "sdk" release holds iPhoneOS27.0.sdk.zip
+      # (packed from the Xcode beta matching the phone). sdk.build is derived from the zip.
+      - name: Fetch bundled SDK
+        run: |
+          set -euo pipefail
+          mkdir -p Shared/sdk
+          curl -fsSL -o Shared/sdk/iPhoneOS27.0.sdk.zip \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/sdk/iPhoneOS27.0.sdk.zip"
+          unzip -p Shared/sdk/iPhoneOS27.0.sdk.zip iPhoneOS27.0.sdk/System/Library/CoreServices/SystemVersion.plist > /tmp/sv.plist
+          plutil -extract ProductBuildVersion raw -o - /tmp/sv.plist | tr -d '\n' > Shared/sdk/sdk.build
+          echo "bundled SDK build: $(cat Shared/sdk/sdk.build), $(stat -f %z Shared/sdk/iPhoneOS27.0.sdk.zip) bytes"
+
       - name: Build Nyxian
         run: |
           set -e

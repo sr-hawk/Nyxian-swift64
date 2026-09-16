@@ -24,7 +24,7 @@
 
 #import <Foundation/Foundation.h>
 
-#define NXBOOTSTRAP_NEWEST_VERSION  30
+#define NXBOOTSTRAP_NEWEST_VERSION  31
 #define NXBOOTSTRAP_CSTEP           (double)(1.0 / NXBOOTSTRAP_NEWEST_VERSION)
 
 /*
@@ -35,7 +35,14 @@
  */
 #define NXBOOTSTRAP_SDK_OSVERSION   @"27.0"
 #define NXBOOTSTRAP_SDK_NAME        @"iPhoneOS27.0.sdk"
-#define NXBOOTSTRAP_SDK_URL         @"https://nyxian.app/bootstrap/iPhoneOS27.0.sdk.zip"
+/*
+ * the SDK ships INSIDE this app (Shared/sdk/, a folder reference, filled
+ * by CI from the fork's "sdk" release asset). sdk.build holds the SDK's
+ * ProductBuildVersion; the bootstrap replaces the installed SDK whenever
+ * it differs. nothing is downloaded from nyxian.app for the SDK.
+ */
+#define NXBOOTSTRAP_SDK_ZIP         @"Shared/sdk/iPhoneOS27.0.sdk.zip"
+#define NXBOOTSTRAP_SDK_BUILD_FILE  @"Shared/sdk/sdk.build"
 
 @interface NXBootstrap : NSObject
 

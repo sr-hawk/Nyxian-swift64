@@ -128,32 +128,52 @@ BOOL PEURLIsContainedIn(NSURL *candidate,
     NSFileManager *fm = [NSFileManager defaultManager];
     NSURL *sdkRootURL = [self.rootURL URLByAppendingPathComponent:@"SDK"];
     NSURL *settingsURL = [self.sdkURL URLByAppendingPathComponent:@"SDKSettings.json"];
+    NSURL *bundledZipURL = [NSBundle.mainBundle.bundleURL URLByAppendingPathComponent:NXBOOTSTRAP_SDK_ZIP];
+    NSURL *bundledBuildURL = [NSBundle.mainBundle.bundleURL URLByAppendingPathComponent:NXBOOTSTRAP_SDK_BUILD_FILE];
+    BOOL changed = NO;
+    
+    /*
+     * which SDK build this app carries. no file, no SDK: a failure,
+     * never a download.
+     */
+    NSString *bundledBuild = [[NSString stringWithContentsOfURL:bundledBuildURL encoding:NSUTF8StringEncoding error:nil] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    if(bundledBuild.length == 0 || ![fm fileExistsAtPath:bundledZipURL.path])
+    {
+        if(error) *error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"this build of Nyxian carries no SDK (%@ / %@ missing)", NXBOOTSTRAP_SDK_ZIP, NXBOOTSTRAP_SDK_BUILD_FILE] }];
+        return NO;
+    }
+    
+    /*
+     * which SDK build is installed, read from its own SystemVersion.plist.
+     */
     NSDictionary *attributes = [fm attributesOfItemAtPath:self.sdkURL.path error:nil];
+    NSString *installedBuild = [NSDictionary dictionaryWithContentsOfURL:[self.sdkURL URLByAppendingPathComponent:@"System/Library/CoreServices/SystemVersion.plist"]][@"ProductBuildVersion"];
     BOOL present = attributes != nil
                 && ![attributes[NSFileType] isEqualToString:NSFileTypeSymbolicLink]
-                && [fm fileExistsAtPath:settingsURL.path];
-    BOOL changed = NO;
+                && [fm fileExistsAtPath:settingsURL.path]
+                && [installedBuild isEqualToString:bundledBuild];
     
     if(!present)
     {
-        NSLog(@"bootstrapping SDK %@", NXBOOTSTRAP_SDK_NAME);
+        NSLog(@"bootstrapping SDK %@ build %@ (installed: %@)", NXBOOTSTRAP_SDK_NAME, bundledBuild, installedBuild ?: @"none");
         [fm removeItemAtURL:sdkRootURL error:nil];
         
-        if(!fdownload(NXBOOTSTRAP_SDK_URL, @"sdk.zip"))
+        if(!unzipArchiveAtPath(bundledZipURL.path, sdkRootURL.path))
         {
-            if(error) *error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"downloading \"%@\" failed", NXBOOTSTRAP_SDK_URL] }];
-            return NO;
-        }
-        
-        if(!unzipArchiveAtPath([NSTemporaryDirectory() stringByAppendingPathComponent:@"sdk.zip"], sdkRootURL.path))
-        {
-            if(error) *error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: @"extracting \"sdk.zip\" failed" }];
+            if(error) *error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"extracting bundled \"%@\" failed", NXBOOTSTRAP_SDK_ZIP] }];
             return NO;
         }
         
         if(![fm fileExistsAtPath:settingsURL.path])
         {
-            if(error) *error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"\"sdk.zip\" did not contain %@", NXBOOTSTRAP_SDK_NAME] }];
+            if(error) *error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"bundled SDK zip did not contain %@", NXBOOTSTRAP_SDK_NAME] }];
+            return NO;
+        }
+        
+        NSString *nowBuild = [NSDictionary dictionaryWithContentsOfURL:[self.sdkURL URLByAppendingPathComponent:@"System/Library/CoreServices/SystemVersion.plist"]][@"ProductBuildVersion"];
+        if(![nowBuild isEqualToString:bundledBuild])
+        {
+            if(error) *error = [NSError errorWithDomain:@"" code:0 userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"bundled SDK reports build %@, sdk.build says %@", nowBuild ?: @"none", bundledBuild] }];
             return NO;
         }
         
@@ -465,6 +485,21 @@ BOOL PEURLIsContainedIn(NSURL *candidate,
                 }
                 
                 self.version = 30;
+            }
+            
+            if(self.version < 31)
+            {
+                /*
+                 * the SDK now ships inside the app and is keyed by its
+                 * build id: an installed SDK of a different build is
+                 * replaced by the bundled one.
+                 */
+                if(![self installSDKWithError:&error])
+                {
+                    goto report_error;
+                }
+                
+                self.version = 31;
             }
         }
         
