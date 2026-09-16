@@ -123,6 +123,13 @@ jobs:
           # Packages we desperately need
           brew install ldid dpkg libarchive
 
+      - name: Install Dependencies
+        run: |
+          set -e
+
+          # Packages we desperately need
+          brew install ldid dpkg libarchive
+
       # Private repositories bill macOS minutes at 10x and cannot afford the 4-5 h toolchain
       # build. When the cache is empty, take the toolchain that the public repository exported
       # (export-toolchain.yml): LLVM, clang, Swift and swift-syntax built from open source.
