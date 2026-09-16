@@ -30,6 +30,9 @@ final class NXBuilder: NSObject {
     
     private(set) var dependencyScanner: MDKDependencyScanner
     private(set) var phaseRunner: NXPhaseRunner
+    /// Set by the phase-runner delegate the first time any job reports back; lets build() tell
+    /// "the driver produced no jobs" apart from "a job failed".
+    var sawJobResult: Bool = false
     
     private let incrementalBuild: Bool = UserDefaults.standard.object(forKey: "LDEIncrementalBuild") as? Bool ?? true
     private let argsString: String
@@ -138,7 +141,14 @@ final class NXBuilder: NSObject {
     }
     
     func build() throws {
+        self.sawJobResult = false
         if !self.phaseRunner.runPhases() {
+            if !self.sawJobResult {
+                // No compile or link job ever reported back: the driver produced no jobs, which is what
+                // happens when it rejects an argument (measured 2026-09-16 with a frontend-only flag).
+                let flags = self.project.projectConfig.swiftFlags.joined(separator: " ")
+                throw NSError(domain: "com.cr4zy.nyxian.builder.runner", code: 1, userInfo: [NSLocalizedDescriptionKey:"No compile job ran: the driver rejected the arguments. Swift flags: \(flags)"])
+            }
             throw NSError(domain: "com.cr4zy.nyxian.builder.runner", code: 1, userInfo: [NSLocalizedDescriptionKey:"Failed to run project."])
         }
         // The linker leaves __LINKEDIT with vmsize == filesize. Every later signer (Nyxian's own, xtool,

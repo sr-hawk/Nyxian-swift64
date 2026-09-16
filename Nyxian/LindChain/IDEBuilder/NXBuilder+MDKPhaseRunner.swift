@@ -35,6 +35,7 @@ extension NXBuilder: MDKPhaseRunnerDelegate {
                 withResultingDiagnostics diagnostics: [MDKDiagnostic]?,
                 withMainSource mainSource: String?,
                 wasSuccessful success: Bool) {
+        self.sawJobResult = true
         if let diagnostics = diagnostics,
            let mainSource = mainSource {
             self.database.removeFileDebug(ofPath: mainSource)

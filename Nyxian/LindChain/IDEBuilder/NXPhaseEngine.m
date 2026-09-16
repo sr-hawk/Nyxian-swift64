@@ -76,6 +76,10 @@
          */
         if(![driverFlags containsObject:@"-enable-cross-import-overlays"])
         {
+            /* a FRONTEND option (FrontendOptions.td), not a driver one: the
+             * legacy driver rejects it bare and then produces no jobs at all
+             * (measured 2026-09-16). */
+            [driverFlags addObject:@"-Xfrontend"];
             [driverFlags addObject:@"-enable-cross-import-overlays"];
         }
         /*
