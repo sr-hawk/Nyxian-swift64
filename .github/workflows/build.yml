@@ -116,6 +116,23 @@ jobs:
           path: Frameworks/CoreCompiler/CoreCompilerSupportLibs
           key: ${{ steps.tc.outputs.key }}
 
+      # Private repositories bill macOS minutes at 10x and cannot afford the 4-5 h toolchain
+      # build. When the cache is empty, take the toolchain that the public repository exported
+      # (export-toolchain.yml): LLVM, clang, Swift and swift-syntax built from open source.
+      - name: Fetch prebuilt toolchain when the cache is empty
+        if: steps.ccsl.outputs.cache-hit != 'true'
+        env:
+          TOOLCHAIN_URL: ${{ vars.TOOLCHAIN_URL || 'https://github.com/sr-hawk/Nyxian-swift64/releases/download/toolchain/CoreCompilerSupportLibs.tar.zst' }}
+        run: |
+          set -euo pipefail
+          if curl -fsSL -o /tmp/ccsl.tar.zst "$TOOLCHAIN_URL"; then
+            mkdir -p Frameworks/CoreCompiler
+            tar --zstd -xf /tmp/ccsl.tar.zst -C Frameworks/CoreCompiler
+            echo "prebuilt toolchain restored: $(du -sh Frameworks/CoreCompiler/CoreCompilerSupportLibs | cut -f1)"
+          else
+            echo "no prebuilt toolchain at $TOOLCHAIN_URL; the Makefile will build it (hours)"
+          fi
+
       - name: Install Dependencies
         run: |
           set -e
