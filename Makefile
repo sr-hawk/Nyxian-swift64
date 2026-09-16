@@ -121,17 +121,34 @@ all: clean check compile package-app clean
 # .swiftmodule files are compiler-version-locked; no search path fixes
 # that.
 #
-# v2 (current): NyxianMacros/*.swift is no longer an Xcode target at all
-# (removed from project.pbxproj -- Xcode's swiftc can never read these
-# modules no matter how it's invoked). build-swiftui-macros-plugin.sh
-# compiles it directly with a macOS-executable swiftc from the SAME
-# snapshot build (LLVM-On-iOS's --host-target=macosx-arm64 side, used
-# internally to cross-compile the iphoneos-arm64 toolchain -- see that
-# script's own header comment for the full reasoning), landing
-# libSwiftUIMacros.dylib straight in CoreCompilerSupportLibs/ so it rides
-# the same cache Save/Restore steps as everything else here and gets
-# embedded via the project's own "Embed Libraries" phase, the same way
-# lib_CompilerSwiftWarningControl.dylib already is.
+# v2 (superseded 2026-09-16 same day, kept for history): removed the
+# NyxianMacros Xcode target (Xcode's swiftc can never read these modules
+# no matter how it's invoked) and tried compiling it directly with a
+# macOS-executable swiftc from the SAME snapshot build instead. Measured
+# live, CI run 35068589780 (the v4 rebuild): that swiftc DOES run and DOES
+# report a clean, unambiguous error -- "no such module
+# '_CompilerSwiftDiagnostics'" -- because host-compiler-modules/ contains
+# ONLY *.dylib files for these four modules, confirmed by this recipe's
+# own `find` diagnostic in that same log. There was never a .swiftmodule
+# to find, at any compiler version -- v1's root-cause theory (binary
+# module version lock) was wrong; the real issue is that LLVM-On-iOS's
+# build never installs .swiftmodule/.swiftinterface for these targets
+# anywhere, for any host.
+#
+# v3 (current): build the actual swift-syntax SOURCE ourselves (the exact
+# revision this snapshot compiler embeds -- LLVM-On-iOS's own
+# build-swift-toolchain.sh fetches it as a sibling of the swift checkout,
+# LLVM-On-iOS/swift-syntax/, via `swift/utils/update-checkout`), with
+# -module-alias <Real>=_Compiler<Real> for each of the 9 targets
+# NyxianMacros needs (transitively) so the resulting .swiftmodule files
+# identify themselves under the same mangled names as the dylibs already
+# shipped -- see build-plugin-swift-syntax-modules.sh's own header for the
+# full reasoning and the measured dependency graph. Split into two Make
+# targets so only the expensive part (needs the transient LLVM-On-iOS
+# build tree + swift-syntax checkout, which only exist during a full
+# rebuild) is gated on this directory; libSwiftUIMacros.dylib itself is a
+# separate file target below so a future cache HIT still rebuilds it if
+# it's missing, without forcing another multi-hour toolchain rebuild.
 Frameworks/CoreCompiler/CoreCompilerSupportLibs:
 	cd LLVM-On-iOS; $(MAKE)
 	rm -rf Frameworks/CoreCompiler/CoreCompilerSupportLibs/
@@ -139,6 +156,18 @@ Frameworks/CoreCompiler/CoreCompilerSupportLibs:
 	cp -r LLVM-On-iOS/LLVM.xcframework Frameworks/CoreCompiler/CoreCompilerSupportLibs/LLVM.xcframework
 	rm -rf Frameworks/CoreCompiler/CoreCompilerSupportLibs/host-compiler-modules
 	cp -a LLVM-On-iOS/SwiftToolchain-iphoneos/lib/swift/host/compiler Frameworks/CoreCompiler/CoreCompilerSupportLibs/host-compiler-modules
+	find Frameworks/CoreCompiler/CoreCompilerSupportLibs/host-compiler-modules -maxdepth 1 \( -name '*.swiftmodule' -o -name '*.swiftdoc' -o -name '*.swiftinterface' -o -name '*.dylib' \) | sort
+	chmod +x build-plugin-swift-syntax-modules.sh
+	./build-plugin-swift-syntax-modules.sh
+
+# libSwiftUIMacros.dylib is its OWN file target (not folded into the
+# directory recipe above) so it still gets (re)built on a cache HIT of
+# Frameworks/CoreCompiler/CoreCompilerSupportLibs if it's simply missing --
+# e.g. right now, since the v4 cache was saved from a run that failed
+# before ever producing it (Save CoreCompiler support libs runs
+# `if: always()`, precisely so a real toolchain rebuild is never thrown
+# away over an unrelated downstream failure).
+Frameworks/CoreCompiler/CoreCompilerSupportLibs/libSwiftUIMacros.dylib: Frameworks/CoreCompiler/CoreCompilerSupportLibs
 	chmod +x build-swiftui-macros-plugin.sh
 	./build-swiftui-macros-plugin.sh
 
@@ -148,7 +177,7 @@ update-config:
 	./version.sh
 
 # Methods
-compile: Frameworks/CoreCompiler/CoreCompilerSupportLibs
+compile: Frameworks/CoreCompiler/CoreCompilerSupportLibs/libSwiftUIMacros.dylib
 	chmod +x version.sh
 	./version.sh
 	xcodebuild \

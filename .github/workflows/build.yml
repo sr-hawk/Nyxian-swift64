@@ -49,7 +49,18 @@ env:
   # macOS-executable swiftc from that same snapshot build (a NEW file in
   # the cached directory), so the cache key must change again or a hit
   # restores a directory with no libSwiftUIMacros.dylib in it at all.
-  CACHE_EPOCH: v4
+  # v4 -> v5 (2026-09-16, same day): v4's own diagnostic proved the real
+  # problem -- host-compiler-modules/ contains ONLY *.dylib files for the
+  # four _Compiler* modules, no .swiftmodule/.swiftinterface at all, on
+  # ANY host. "no such module '_CompilerSwiftDiagnostics'" (not a version
+  # mismatch) confirmed it: there was never anything to read, at any
+  # compiler version. Fix: build the actual swift-syntax source (fetched
+  # as LLVM-On-iOS/swift-syntax by the toolchain build itself) with
+  # -module-alias so it type-checks under the same mangled names as the
+  # shipped dylibs -- see build-plugin-swift-syntax-modules.sh. Its
+  # outputs (a cached macOS swiftc copy + the built .swiftmodule files)
+  # are new files in the cached directory, so the key changes again.
+  CACHE_EPOCH: v5
 
 jobs:
   build:
