@@ -107,17 +107,31 @@ all: FILE := Nyxian.ipa
 all: clean check compile package-app clean
 
 # Dependencies
-# NOTE (macro plugin support): LLVM-On-iOS's own Makefile only bundles the
-# lib_Compiler*.dylib files into CoreCompilerSupportLibs -- the .swiftmodule/
-# .swiftdoc/.swiftinterface files for those same _Compiler* modules exist
-# right next to them in LLVM-On-iOS/SwiftToolchain-iphoneos/lib/swift/host/
-# compiler/ but are never copied out. Nothing outside that directory can
-# `import _CompilerSwiftSyntax` etc. (needed to build a -load-plugin-library
-# macro plugin against the compiler's own in-process module set) without
-# them. Copy the whole host/compiler tree alongside the dylibs so it rides
-# in the same cached CoreCompilerSupportLibs directory build.yml already
-# saves/restores -- this is the "least-cost path" from the plugin-support
-# plan, not a functional change to the app build itself.
+# NOTE (macro plugin support, v1 -- superseded, kept for history): copying
+# LLVM-On-iOS/SwiftToolchain-iphoneos/lib/swift/host/compiler's .swiftmodule/
+# .swiftdoc/.swiftinterface files alongside the lib_Compiler*.dylib files
+# (the two cp/rm lines below) was NOT sufficient. Measured live, CI run
+# 35050516832: with SWIFT_INCLUDE_PATHS correctly pointed at
+# host-compiler-modules, Xcode's own swiftc still failed archiving the
+# NyxianMacros target with "unable to resolve module dependency:
+# '_CompilerSwiftDiagnostics'" (and the other three _Compiler* modules).
+# Root cause: those .swiftmodule files are binary modules produced by the
+# swift-6.4.x-DEVELOPMENT-SNAPSHOT compiler LLVM-On-iOS builds -- a
+# DIFFERENT compiler build than Xcode's own bundled swiftc. Binary
+# .swiftmodule files are compiler-version-locked; no search path fixes
+# that.
+#
+# v2 (current): NyxianMacros/*.swift is no longer an Xcode target at all
+# (removed from project.pbxproj -- Xcode's swiftc can never read these
+# modules no matter how it's invoked). build-swiftui-macros-plugin.sh
+# compiles it directly with a macOS-executable swiftc from the SAME
+# snapshot build (LLVM-On-iOS's --host-target=macosx-arm64 side, used
+# internally to cross-compile the iphoneos-arm64 toolchain -- see that
+# script's own header comment for the full reasoning), landing
+# libSwiftUIMacros.dylib straight in CoreCompilerSupportLibs/ so it rides
+# the same cache Save/Restore steps as everything else here and gets
+# embedded via the project's own "Embed Libraries" phase, the same way
+# lib_CompilerSwiftWarningControl.dylib already is.
 Frameworks/CoreCompiler/CoreCompilerSupportLibs:
 	cd LLVM-On-iOS; $(MAKE)
 	rm -rf Frameworks/CoreCompiler/CoreCompilerSupportLibs/
@@ -125,6 +139,8 @@ Frameworks/CoreCompiler/CoreCompilerSupportLibs:
 	cp -r LLVM-On-iOS/LLVM.xcframework Frameworks/CoreCompiler/CoreCompilerSupportLibs/LLVM.xcframework
 	rm -rf Frameworks/CoreCompiler/CoreCompilerSupportLibs/host-compiler-modules
 	cp -a LLVM-On-iOS/SwiftToolchain-iphoneos/lib/swift/host/compiler Frameworks/CoreCompiler/CoreCompilerSupportLibs/host-compiler-modules
+	chmod +x build-swiftui-macros-plugin.sh
+	./build-swiftui-macros-plugin.sh
 
 # Helper
 update-config:

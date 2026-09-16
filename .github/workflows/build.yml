@@ -38,7 +38,18 @@ env:
   # hit skips the whole toolchain build and the plugin has nothing to link.
   # One-time cost: a full LLVM-On-iOS toolchain rebuild (~4-5h) on the next
   # push, same as any other CACHE_EPOCH bump.
-  CACHE_EPOCH: v3
+  # v3 -> v4 (2026-09-16): v3's fix was necessary but not sufficient --
+  # measured live on CI run 35050516832, "unable to resolve module
+  # dependency" persisted even with the .swiftmodule files present and
+  # -I wired correctly, because they're binary modules locked to the
+  # snapshot compiler that built them, not Xcode's swiftc (see the
+  # Makefile's own NOTE above build-swiftui-macros-plugin.sh). The
+  # NyxianMacros Xcode target is gone; the Makefile now compiles
+  # libSwiftUIMacros.dylib directly into CoreCompilerSupportLibs/ with a
+  # macOS-executable swiftc from that same snapshot build (a NEW file in
+  # the cached directory), so the cache key must change again or a hit
+  # restores a directory with no libSwiftUIMacros.dylib in it at all.
+  CACHE_EPOCH: v4
 
 jobs:
   build:
