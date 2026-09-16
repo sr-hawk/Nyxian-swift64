@@ -22,6 +22,7 @@
 #import <LindChain/IDEBuilder/NXPhaseEngine.h>
 #import <LindChain/IDEBuilder/LDEFilesFinder.h>
 #import <LindChain/IDEFoundation/NXUtils.h>
+#import <LindChain/IDEFoundation/NXBootstrap.h>
 
 @implementation NXPhaseEngine
 
@@ -83,28 +84,100 @@
             [driverFlags addObject:@"-enable-cross-import-overlays"];
         }
         /*
-         * iOS 27's SwiftUICore declares @State (and friends) as a
-         * compiler-plugin macro (module "SwiftUIMacros"), not a plain
-         * property wrapper anymore. Nyxian's frontend runs in-process, so
-         * only an in-process LIBRARY plugin works (-load-plugin-library);
-         * out-of-process executable plugins (-plugin-path,
-         * -external-plugin-path) are not usable on iOS at all. This is
-         * Nyxian's OWN macro implementation (NyxianMacros target, product
-         * module name "SwiftUIMacros" -- the frontend resolves
-         * #externalMacro(module:type:) purely by that string, so the
-         * plugin's module name has to match the SDK's declaration, not
-         * Nyxian's own project naming), embedded at Frameworks/
-         * libSwiftUIMacros.dylib next to the rest of the app's frameworks.
+         * iOS 27's SDK declares @State, @Model, @AppIntent, #Preview, and
+         * every other SDK 27 macro as compiler-plugin macros (SwiftUIMacros,
+         * SwiftDataMacros, AppIntentsMacros, ...), not plain attributes.
+         * Nyxian's frontend runs in-process, so only in-process LIBRARY
+         * plugins work (-load-plugin-library); out-of-process executable
+         * plugins (-plugin-path, -external-plugin-path) are not usable on
+         * iOS at all.
+         *
+         * A library plugin ALSO needs -in-process-plugin-server-path or the
+         * frontend rejects it outright before ever trying to resolve a
+         * macro: PluginLoader::getInProcessPlugins() (lib/AST/
+         * PluginLoader.cpp) errors "library plugins require
+         * -in-process-plugin-server-path" unless that flag names a real
+         * libSwiftInProcPluginServer.dylib. -load-plugin-library alone was
+         * never enough.
+         *
+         * There used to be a second source here: a hand-written
+         * NyxianMacros plugin (module "SwiftUIMacros") reimplementing
+         * @State alone. DELETED (see the commit that removed
+         * NyxianMacros/): it only ever covered 1 of the SDK's 70 macro
+         * names, and Apple's own plugin dylibs below supersede it entirely
+         * -- correct, for all of them, once installed. No reason to
+         * maintain a hand-rolled reimplementation alongside the real
+         * thing.
+         *
+         * Apple's own macro plugin dylibs (SwiftUIMacros, SwiftDataMacros,
+         * AppIntentsMacros, PreviewsMacros, ...) are owner-installed at
+         * Documents/plugins/*.dylib (never redistributed -- see z97's
+         * push-plugins), discovered here at build time, every dylib in the
+         * directory passed through, none hardcoded. MEASURED (llvm-objdump
+         * on z97, all 15 plugin dylibs -- 12 iPhoneOS + 3 toolchain-level):
+         * every one is a macOS-platform Mach-O (LC_BUILD_VERSION
+         * platform=macos) -- push-plugins patches that field before
+         * copying them over, since iOS dyld enforces platform on load.
+         * Distinct, second-order finding: 6 of the 12 iPhoneOS plugins
+         * (SwiftUIMacros, AppIntentsMacros, FoundationModelsMacros,
+         * MMIOMacros, FinanceMacros, StateReportingMacros) additionally
+         * link an absolute macOS-only path (e.g. /System/Library/
+         * Frameworks/Foundation.framework/Versions/C/Foundation -- a
+         * versioned-bundle path with no equivalent in iOS's flat framework
+         * layout) that a platform-stamp patch alone cannot fix; the other 9
+         * link only @rpath/lib*.dylib (this app now ships all of those,
+         * see stage-in-process-plugin-libs.sh) and /usr/lib/swift/*
+         * paths that already exist identically on iOS, so are expected to
+         * load once the platform stamp is fixed. All are passed through
+         * regardless -- the frontend's own dlopen/dlsym failure per plugin
+         * is a more precise, first-hand diagnostic than pre-filtering.
          */
-        NSString *swiftUIMacrosPluginPath = [NSBundle.mainBundle.privateFrameworksURL URLByAppendingPathComponent:@"libSwiftUIMacros.dylib"].path;
-        if(swiftUIMacrosPluginPath != nil && [NSFileManager.defaultManager fileExistsAtPath:swiftUIMacrosPluginPath])
+        NSMutableArray<NSString*> *libraryPluginPaths = [NSMutableArray array];
+
+        NSURL *pluginsURL = NXBootstrap.shared.pluginsURL;
+        NSArray<NSURL*> *installedPlugins = [NSFileManager.defaultManager contentsOfDirectoryAtURL:pluginsURL includingPropertiesForKeys:nil options:0 error:nil];
+        if(installedPlugins == nil || installedPlugins.count == 0)
         {
-            if(![driverFlags containsObject:@"-load-plugin-library"])
+            /*
+             * never silent: named here so a build that actually needed one
+             * of Apple's SDK 27 macros fails with an explanation pointing
+             * at exactly where to put the plugin, not just a bare "external
+             * macro implementation type ... could not be found".
+             */
+            NSLog(@"no macro plugins installed at %@ -- every SDK 27 macro (@State, @Model, @AppIntent, #Preview, ...) will fail to resolve until Apple's plugin dylibs are copied in (see z97's push-plugins)", pluginsURL.path);
+        }
+        else
+        {
+            for(NSURL *pluginURL in installedPlugins)
             {
-                [driverFlags addObject:@"-load-plugin-library"];
-                [driverFlags addObject:swiftUIMacrosPluginPath];
+                if([pluginURL.pathExtension isEqualToString:@"dylib"])
+                {
+                    [libraryPluginPaths addObject:pluginURL.path];
+                }
             }
         }
+
+        if(libraryPluginPaths.count != 0)
+        {
+            NSString *inProcessPluginServerPath = [[NSBundle.mainBundle.privateFrameworksURL URLByAppendingPathComponent:@"CoreCompiler.framework/CoreCompilerSupportLibs/host-plugin-libs/libSwiftInProcPluginServer.dylib"] path];
+            if(inProcessPluginServerPath != nil && [NSFileManager.defaultManager fileExistsAtPath:inProcessPluginServerPath])
+            {
+                [driverFlags addObject:@"-in-process-plugin-server-path"];
+                [driverFlags addObject:inProcessPluginServerPath];
+
+                for(NSString *pluginPath in libraryPluginPaths)
+                {
+                    [driverFlags addObject:@"-load-plugin-library"];
+                    [driverFlags addObject:pluginPath];
+                }
+            }
+            else
+            {
+                /* again: never silent -- name exactly what's missing. */
+                NSLog(@"%lu macro plugin(s) found but %@ is missing -- no -in-process-plugin-server-path means the frontend refuses every -load-plugin-library outright, so none of them were passed this build", (unsigned long)libraryPluginPaths.count, inProcessPluginServerPath);
+            }
+        }
+
         [driverFlags addObject:@"-module-name"];
         [driverFlags addObject:NXMakeContentCodeFriendly(project.projectConfig.displayName)];
         return [super initWithSwiftFlags:driverFlags withOtherClangFlags:project.projectConfig.compilerFlags withOtherLinkerFlags:project.projectConfig.linkerFlags];

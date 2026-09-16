@@ -30,58 +30,33 @@ env:
   # This value is part of the cache key, so changing it rebuilds automatically.
   LLVM_TARGETS: AArch64;ARM
   # Bump to throw away a bad toolchain cache without touching anything else.
-  # v2 -> v3 (2026-09): the Makefile's CoreCompilerSupportLibs rule now also
-  # copies lib/swift/host/compiler's .swiftmodule/.swiftdoc/.swiftinterface
-  # files (needed to build the SwiftUIMacros plugin against _CompilerSwift*)
-  # alongside the dylibs it already bundled. That cache directory is content
-  # from a run before this change, so the key must change too or the cache
-  # hit skips the whole toolchain build and the plugin has nothing to link.
-  # One-time cost: a full LLVM-On-iOS toolchain rebuild (~4-5h) on the next
-  # push, same as any other CACHE_EPOCH bump.
-  # v3 -> v4 (2026-09-16): v3's fix was necessary but not sufficient --
-  # measured live on CI run 35050516832, "unable to resolve module
-  # dependency" persisted even with the .swiftmodule files present and
-  # -I wired correctly, because they're binary modules locked to the
-  # snapshot compiler that built them, not Xcode's swiftc (see the
-  # Makefile's own NOTE above build-swiftui-macros-plugin.sh). The
-  # NyxianMacros Xcode target is gone; the Makefile now compiles
-  # libSwiftUIMacros.dylib directly into CoreCompilerSupportLibs/ with a
-  # macOS-executable swiftc from that same snapshot build (a NEW file in
-  # the cached directory), so the cache key must change again or a hit
-  # restores a directory with no libSwiftUIMacros.dylib in it at all.
-  # v4 -> v5 (2026-09-16, same day): v4's own diagnostic proved the real
-  # problem -- host-compiler-modules/ contains ONLY *.dylib files for the
-  # four _Compiler* modules, no .swiftmodule/.swiftinterface at all, on
-  # ANY host. "no such module '_CompilerSwiftDiagnostics'" (not a version
-  # mismatch) confirmed it: there was never anything to read, at any
-  # compiler version. Fix: build the actual swift-syntax source (fetched
-  # as LLVM-On-iOS/swift-syntax by the toolchain build itself) with
-  # -module-alias so it type-checks under the same mangled names as the
-  # shipped dylibs -- see build-plugin-swift-syntax-modules.sh. Its
-  # outputs (a cached macOS swiftc copy + the built .swiftmodule files)
-  # are new files in the cached directory, so the key changes again.
-  # v5 -> v6 (2026-09-16, same day): v5's cached swiftc copy was itself
-  # broken. Measured live, CI run 35094974426: `cp -a` of just
-  # host-swiftc-macos/bin/ produced a swiftc that launched (printed its own
-  # "Unable to locate libSwiftScan" fallback notice -- not a dyld crash)
-  # but then failed `-version` outright -- "relocation broke it". The v5
-  # cache ALREADY has this broken copy saved (Save CoreCompiler support
-  # libs runs `if: always()`, so it saved even though the job failed), so
-  # a v5 cache HIT would keep serving the same broken swiftc forever --
-  # Stage A (which does the copying) only runs inside the
-  # no-prerequisites CoreCompilerSupportLibs directory recipe, so it does
-  # NOT rerun on a cache hit. This bump is therefore unavoidable, not
-  # optional: there is no cheap path to a working cached swiftc from here.
-  # Fix (build-plugin-swift-syntax-modules.sh): copy the same
-  # bin/include/share/lib-swift/lib-cmake/top-level-libs subset (plus
-  # `materialize_required_symlinks` for bin/swiftc -> swift-driver) that
-  # LLVM-On-iOS's OWN `Scripts/build-swift-toolchain.sh`
-  # `copy_ios_install()` already uses -- proven live in this exact run's
-  # log to produce a working relocated copy for the iOS side of the same
-  # build; this reuses that recipe verbatim for the macOS host side
-  # instead of re-guessing. New content (lib/swift/macosx's dylibs etc.)
-  # in the cached directory, so the key must change again.
-  CACHE_EPOCH: v6
+  # v2 -> v6 history (all chasing the now-DELETED hand-rolled NyxianMacros
+  # plugin build: binary .swiftmodule version lock -> module files that
+  # never existed -> a relocated macOS snapshot swiftc, each measured live
+  # on a real CI run and fixed in turn) is in
+  # `~/Desktop/LANE - nyxian-macros.md` section 7-10, not repeated here --
+  # that whole build path (build-swiftui-macros-plugin.sh,
+  # build-plugin-swift-syntax-modules.sh, the NyxianMacros Xcode target)
+  # is gone as of this commit (task item E: Apple's own plugin dylibs,
+  # installed at Documents/plugins/, supersede it -- correct for all 70
+  # SDK 27 macro names, not just the 1 (@State) NyxianMacros reimplemented).
+  # v6 -> v7 (2026-09-16, task item A -- ship Apple's in-process-plugin-
+  # server infra, distinct from and unrelated to the deleted NyxianMacros
+  # route above): new stage-in-process-plugin-libs.sh copies
+  # libSwiftInProcPluginServer.dylib and the non-underscored swift-syntax
+  # host libraries out of LLVM-On-iOS/SwiftToolchain-iphoneos/lib/swift/
+  # host/ into a NEW host-plugin-libs/ subdirectory of the same cached
+  # CoreCompilerSupportLibs tree, called from the SAME Makefile recipe (it
+  # only runs on a cache MISS -- a full toolchain rebuild). A v6 cache HIT
+  # restores a tree with no host-plugin-libs/ in it at all, so
+  # -in-process-plugin-server-path in NXPhaseEngine.m would find nothing;
+  # unavoidable, one more full rebuild, same reasoning as every prior bump
+  # in this list. Landing the item-E deletion in this SAME v7 push (rather
+  # than a separate one) avoids paying for a second full rebuild just to
+  # remove files from a Makefile recipe -- a stale v6/v7-built cache
+  # missing the deletion would simply carry harmless now-unused content,
+  # nothing downstream depends on it being absent.
+  CACHE_EPOCH: v7
 
 jobs:
   build:

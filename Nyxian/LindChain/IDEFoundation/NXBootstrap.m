@@ -86,6 +86,11 @@ BOOL PEURLIsContainedIn(NSURL *candidate,
     return [self.rootURL URLByAppendingPathComponent:[@"SDK/" stringByAppendingString:NXBOOTSTRAP_SDK_NAME]];
 }
 
+- (NSURL*)pluginsURL
+{
+    return [self.rootURL URLByAppendingPathComponent:NXBOOTSTRAP_PLUGINS_DIRNAME];
+}
+
 - (NSURL*)includeURL
 {
     return [self.rootURL URLByAppendingPathComponent:@"Include"];
@@ -193,6 +198,86 @@ BOOL PEURLIsContainedIn(NSURL *candidate,
         return NO;
     }
     
+    return YES;
+}
+
+/*
+ * mechanical format check only (Mach-O magic, any slice) -- this does NOT
+ * dlopen the file (bootstrap is not the place to execute an untrusted/
+ * mis-copied binary) and does NOT check architecture, platform (macOS vs
+ * iOS) or code signature: none of that is knowable without actually
+ * trying to load it, which NXPhaseEngine's own -load-plugin-library does
+ * at real build time and reports through the normal Swift diagnostic
+ * path. This only keeps obvious junk (a partial rsync, an .html Apple
+ * error page, a renamed non-dylib) out of plugins/.
+ */
+static BOOL NXIsLikelyMachODylibAtPath(NSString *path)
+{
+    NSFileHandle *handle = [NSFileHandle fileHandleForReadingAtPath:path];
+    if(handle == nil)
+    {
+        return NO;
+    }
+    NSData *header = [handle readDataOfLength:4];
+    [handle closeFile];
+    if(header.length != 4)
+    {
+        return NO;
+    }
+
+    UInt32 magic = 0;
+    [header getBytes:&magic length:4];
+
+    switch(magic)
+    {
+        case 0xfeedfacfU: /* MH_MAGIC_64, little-endian host */
+        case 0xcffaedfeU: /* MH_CIGAM_64 */
+        case 0xfeedfaceU: /* MH_MAGIC (32-bit) */
+        case 0xcefaedfeU: /* MH_CIGAM */
+        case 0xcafebabeU: /* FAT_MAGIC (universal) */
+        case 0xbebafecaU: /* FAT_CIGAM */
+            return YES;
+        default:
+            return NO;
+    }
+}
+
+/*
+ * plugins/ is OPTIONAL and owner-installed (see NXBOOTSTRAP_PLUGINS_DIRNAME
+ * in the header). unlike installSDKWithError:, an absent or empty
+ * directory here is never a failure -- it only means NXPhaseEngine finds
+ * nothing to pass to -load-plugin-library and any macro needing one of
+ * these plugins fails to resolve, loudly, at that point. this step's own
+ * job is narrower: keep plugins/ free of anything that isn't structurally
+ * a Mach-O dylib, so a bad copy can't silently sit there looking installed.
+ */
+- (BOOL)verifyPluginsWithError:(NSError**)error
+{
+    NSFileManager *fm = [NSFileManager defaultManager];
+
+    [fm createDirectoryAtURL:self.pluginsURL withIntermediateDirectories:YES attributes:nil error:nil];
+
+    NSArray<NSURL*> *entries = [fm contentsOfDirectoryAtURL:self.pluginsURL includingPropertiesForKeys:nil options:0 error:nil];
+    if(entries == nil || entries.count == 0)
+    {
+        NSLog(@"no plugins installed at %@ (macros needing an installed plugin will fail to resolve until plugin dylibs are copied in -- see z97's push-plugins)", self.pluginsURL.path);
+        return YES;
+    }
+
+    for(NSURL *entry in entries)
+    {
+        BOOL isDirectory = NO;
+        [fm fileExistsAtPath:entry.path isDirectory:&isDirectory];
+        BOOL looksRight = !isDirectory
+                        && [entry.lastPathComponent.pathExtension isEqualToString:@"dylib"]
+                        && NXIsLikelyMachODylibAtPath(entry.path);
+        if(!looksRight)
+        {
+            NSLog(@"pruning %@ from plugins/ (not a .dylib / not Mach-O)", entry.lastPathComponent);
+            [fm removeItemAtURL:entry error:nil];
+        }
+    }
+
     return YES;
 }
 
@@ -471,8 +556,23 @@ BOOL PEURLIsContainedIn(NSURL *candidate,
                 
                 self.version = 31;
             }
+
+            if(self.version < 32)
+            {
+                /*
+                 * plugins/ for Apple's own macro-plugin dylibs (owner-
+                 * installed, same model as SDK/). missing/empty is not a
+                 * bootstrap error; this only prunes non-dylib junk.
+                 */
+                if(![self verifyPluginsWithError:&error])
+                {
+                    goto report_error;
+                }
+
+                self.version = 32;
+            }
         }
-        
+
         NSLog(@"done");
     });
 }

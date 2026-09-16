@@ -24,7 +24,7 @@
 
 #import <Foundation/Foundation.h>
 
-#define NXBOOTSTRAP_NEWEST_VERSION  31
+#define NXBOOTSTRAP_NEWEST_VERSION  32
 #define NXBOOTSTRAP_CSTEP           (double)(1.0 / NXBOOTSTRAP_NEWEST_VERSION)
 
 /*
@@ -43,10 +43,23 @@
  * building without an installed SDK fails with a precise message.
  */
 
+/*
+ * Apple's own macro-plugin dylibs (SwiftUIMacros, SwiftDataMacros, ...)
+ * -- like the SDK, these are the owner's own, never redistributed.
+ * Documents/plugins/*.dylib is copied on LOCALLY (USB / Files, see z97's
+ * push-plugins). Unlike SDK/, an empty or missing plugins/ is NOT a
+ * bootstrap error -- it only means macros that need an installed plugin
+ * fail to resolve at build time (NXPhaseEngine names the directory when
+ * that happens). This step only verifies each entry is a loadable dylib
+ * and prunes anything that isn't.
+ */
+#define NXBOOTSTRAP_PLUGINS_DIRNAME @"plugins"
+
 @interface NXBootstrap : NSObject
 
 @property (nonatomic, readonly, strong, nonnull) NSURL *rootURL;
 @property (nonatomic, readonly, strong, nonnull) NSURL *sdkURL;
+@property (nonatomic, readonly, strong, nonnull) NSURL *pluginsURL;
 @property (nonatomic, readonly, strong, nonnull) NSURL *includeURL;
 @property (nonatomic, readonly, strong, nonnull) NSURL *projectsURL;
 @property (nonatomic, readonly, strong, nonnull) NSURL *cacheURL;
