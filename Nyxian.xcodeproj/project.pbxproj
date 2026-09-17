@@ -314,6 +314,19 @@
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxMacroExpansion.dylib,
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxMacros.dylib,
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftWarningControl.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftBasicFormat.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftCompilerPluginMessageHandling.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftDiagnostics.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftIfConfig.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftInProcPluginServer.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftLibraryPluginProvider.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftOperators.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftParser.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftParserDiagnostics.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftSyntax.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftSyntaxBuilder.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftSyntaxMacroExpansion.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftSyntaxMacros.dylib,
 				CoreCompiler/CoreCompilerSupportLibs/LLVM.xcframework,
 				CoreCompiler/Support/CCDiagnostic.c,
 				CoreCompiler/Support/CCDiagnostic.h,
@@ -506,6 +519,19 @@
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxMacroExpansion.dylib = (CodeSignOnCopy, );
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxMacros.dylib = (CodeSignOnCopy, );
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftWarningControl.dylib = (CodeSignOnCopy, );
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftBasicFormat.dylib = (CodeSignOnCopy, );
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftCompilerPluginMessageHandling.dylib = (CodeSignOnCopy, );
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftDiagnostics.dylib = (CodeSignOnCopy, );
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftIfConfig.dylib = (CodeSignOnCopy, );
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftInProcPluginServer.dylib = (CodeSignOnCopy, );
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftLibraryPluginProvider.dylib = (CodeSignOnCopy, );
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftOperators.dylib = (CodeSignOnCopy, );
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftParser.dylib = (CodeSignOnCopy, );
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftParserDiagnostics.dylib = (CodeSignOnCopy, );
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftSyntax.dylib = (CodeSignOnCopy, );
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftSyntaxBuilder.dylib = (CodeSignOnCopy, );
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftSyntaxMacroExpansion.dylib = (CodeSignOnCopy, );
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftSyntaxMacros.dylib = (CodeSignOnCopy, );
 			};
 			buildPhase = 86DCC2922FA520EE00973169 /* Embed Libraries */;
 			membershipExceptions = (
@@ -523,6 +549,19 @@
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxMacroExpansion.dylib,
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftSyntaxMacros.dylib,
 				CoreCompiler/CoreCompilerSupportLibs/lib_CompilerSwiftWarningControl.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftBasicFormat.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftCompilerPluginMessageHandling.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftDiagnostics.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftIfConfig.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftInProcPluginServer.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftLibraryPluginProvider.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftOperators.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftParser.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftParserDiagnostics.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftSyntax.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftSyntaxBuilder.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftSyntaxMacroExpansion.dylib,
+				CoreCompiler/CoreCompilerSupportLibs/host-plugin-libs/libSwiftSyntaxMacros.dylib,
 			);
 		};
 		AFF4DBDB2DCA5DEA00B1B5F9 /* Exceptions for "Nyxian" folder in "Embed Libraries" phase from "Nyxian" target */ = {

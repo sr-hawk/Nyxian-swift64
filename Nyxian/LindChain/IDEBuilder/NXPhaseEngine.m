@@ -159,7 +159,31 @@
 
         if(libraryPluginPaths.count != 0)
         {
-            NSString *inProcessPluginServerPath = [[NSBundle.mainBundle.privateFrameworksURL URLByAppendingPathComponent:@"CoreCompiler.framework/CoreCompilerSupportLibs/host-plugin-libs/libSwiftInProcPluginServer.dylib"] path];
+            /*
+             * MEASURED (llvm-objdump-20 --private-headers on
+             * CoreCompiler.framework/CoreCompiler, z97, 2026-09-17): its
+             * LC_RPATH commands are /usr/lib/swift, @executable_path/
+             * Frameworks, and @loader_path/Frameworks -- @loader_path here
+             * is CoreCompiler.framework/ itself, so @loader_path/Frameworks
+             * resolves to CoreCompiler.framework/Frameworks/, exactly where
+             * the existing lib_Compiler*.dylib set (host-compiler-modules'
+             * output) is embedded today via the "Embed Libraries" copy
+             * phase (dstSubfolderSpec = 10, flattens any source path to
+             * just the file's basename in that one directory -- confirmed
+             * by inspecting the built IPA, run 35153381480). Apple's plugin
+             * dylibs on Documents/plugins depend on @rpath/libSwiftSyntax.
+             * dylib etc, which only resolves if a dylib in the active load
+             * chain (CoreCompiler's own binary) has that path on its rpath
+             * -- so the 13 host-plugin-libs dylibs must live in that same
+             * CoreCompiler.framework/Frameworks/ directory, not a
+             * CoreCompilerSupportLibs/host-plugin-libs/ subpath (which is
+             * only where they sit on SOURCE disk before the copy phase
+             * flattens them into the built bundle -- this path expected the
+             * pre-copy source layout, not the post-copy bundle layout, and
+             * was never reached: verified by unzipping the run 35153381480
+             * IPA, this path did not exist).
+             */
+            NSString *inProcessPluginServerPath = [[NSBundle.mainBundle.privateFrameworksURL URLByAppendingPathComponent:@"CoreCompiler.framework/Frameworks/libSwiftInProcPluginServer.dylib"] path];
             if(inProcessPluginServerPath != nil && [NSFileManager.defaultManager fileExistsAtPath:inProcessPluginServerPath])
             {
                 [driverFlags addObject:@"-in-process-plugin-server-path"];
