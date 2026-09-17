@@ -140,13 +140,6 @@ CC_EXPORT Boolean CCSwiftCompilerJobExecute(CCJobRef job,
         std::string tracePath = std::string(home) + "/Documents/build.log";
         trace = fopen(tracePath.c_str(), "a");
     }
-    if(trace)
-    {
-        fprintf(trace, "\n--- swift frontend, %zu args\n", argStorage.size());
-        for(const auto &a : argStorage) fprintf(trace, "    %s\n", a.c_str());
-        fflush(trace);
-    }
-    
     /*
      * The legacy driver computes -in-process-plugin-server-path from the swift
      * program path. In an in-process compiler that path is empty, so the value
@@ -186,11 +179,51 @@ CC_EXPORT Boolean CCSwiftCompilerJobExecute(CCJobRef job,
         }
     }
     
+    if(trace)
+    {
+        fprintf(trace, "\n--- swift frontend, %zu args (as passed)\n", argStorage.size());
+        for(const auto &a : argStorage) fprintf(trace, "    %s\n", a.c_str());
+        fflush(trace);
+    }
+    
     CCInitializeSwiftModulesOnce();
     
     CCSwiftObserver obs;
     llvm::remove_fatal_error_handler();
+    
+    /*
+     * The frontend prints argument errors, module-load failures and fatal
+     * errors to stderr through its own printing consumer, before the
+     * CapturingConsumer below is ever installed -- in an iOS app that output
+     * goes nowhere, which is why every failure so far arrived with
+     * diagnostics=0 and no explanation (measured 2026-09-17). Point both
+     * standard streams at the build log for the duration of the call.
+     */
+    int savedOut = -1, savedErr = -1;
+    if(trace)
+    {
+        fflush(stdout);
+        fflush(stderr);
+        fprintf(trace, "  --- frontend output ---\n");
+        fflush(trace);
+        savedOut = dup(1);
+        savedErr = dup(2);
+        dup2(fileno(trace), 1);
+        dup2(fileno(trace), 2);
+    }
+    
     int status = swift::performFrontend(args, "swift-frontend", nullptr, &obs);
+    
+    if(trace)
+    {
+        fflush(stdout);
+        fflush(stderr);
+        if(savedOut >= 0) { dup2(savedOut, 1); close(savedOut); }
+        if(savedErr >= 0) { dup2(savedErr, 2); close(savedErr); }
+        fprintf(trace, "  --- end frontend output ---\n");
+        fflush(trace);
+    }
+    
     CCInstallLLVMFatalErrorHandler();
     if(trace)
     {
