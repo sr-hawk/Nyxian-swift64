@@ -134,8 +134,30 @@
          */
         NSMutableArray<NSString*> *libraryPluginPaths = [NSMutableArray array];
 
+        /*
+         * Two places, both owner-installed, never redistributed:
+         *
+         *   1. this app's own Frameworks directory. Apple's macro plugin dylibs are macOS
+         *      Mach-Os whose platform field has to be patched to iOS before dyld will look at
+         *      them, and patching invalidates Apple's signature -- iOS then refuses them with
+         *      "code signature invalid" (measured 2026-09-17). Injected into the bundle before
+         *      installation they are signed with the app itself, so the signature is valid.
+         *   2. Documents/plugins, kept as an override for anything dropped in by hand.
+         */
         NSURL *pluginsURL = NXBootstrap.shared.pluginsURL;
-        NSArray<NSURL*> *installedPlugins = [NSFileManager.defaultManager contentsOfDirectoryAtURL:pluginsURL includingPropertiesForKeys:nil options:0 error:nil];
+        NSMutableArray<NSURL*> *installedPlugins = [NSMutableArray array];
+        
+        NSURL *bundlePluginsURL = NSBundle.mainBundle.privateFrameworksURL;
+        for(NSURL *candidate in [NSFileManager.defaultManager contentsOfDirectoryAtURL:bundlePluginsURL includingPropertiesForKeys:nil options:0 error:nil])
+        {
+            NSString *name = candidate.lastPathComponent;
+            if([name hasPrefix:@"lib"] && [name hasSuffix:@"Macros.dylib"])
+            {
+                [installedPlugins addObject:candidate];
+            }
+        }
+        
+        [installedPlugins addObjectsFromArray:([NSFileManager.defaultManager contentsOfDirectoryAtURL:pluginsURL includingPropertiesForKeys:nil options:0 error:nil] ?: @[])];
         if(installedPlugins == nil || installedPlugins.count == 0)
         {
             /*
