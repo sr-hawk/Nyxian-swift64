@@ -140,9 +140,28 @@ final class NXBuilder: NSObject {
         }
     }
     
+    /// Appends to Documents/build.log. See CCSwiftCompiler.cpp for why a file and not os_log.
+    static func trace(_ line: String) {
+        let url = NXBootstrap.shared().rootURL.appendingPathComponent("build.log")
+        guard let data = (line + "\n").data(using: .utf8) else { return }
+        if let h = try? FileHandle(forWritingTo: url) {
+            defer { try? h.close() }
+            _ = try? h.seekToEnd()
+            try? h.write(contentsOf: data)
+        } else {
+            try? data.write(to: url)
+        }
+    }
+
     func build() throws {
         self.sawJobResult = false
-        if !self.phaseRunner.runPhases() {
+        NXBuilder.trace("=== build \(self.project.projectConfig.displayName ?? "?") target=\(self.project.projectConfig.deploymentTarget ?? "?")")
+        NXBuilder.trace("    swiftFlags: \(self.project.projectConfig.swiftFlags.joined(separator: " "))")
+        NXBuilder.trace("    clangFlags: \(self.project.projectConfig.compilerFlags.joined(separator: " "))")
+        NXBuilder.trace("    linkerFlags: \(self.project.projectConfig.linkerFlags.joined(separator: " "))")
+        let phasesOK = self.phaseRunner.runPhases()
+        NXBuilder.trace("    runPhases -> \(phasesOK), sawJobResult=\(self.sawJobResult)")
+        if !phasesOK {
             if !self.sawJobResult {
                 // No compile or link job ever reported back: the driver produced no jobs, which is what
                 // happens when it rejects an argument (measured 2026-09-16 with a frontend-only flag).

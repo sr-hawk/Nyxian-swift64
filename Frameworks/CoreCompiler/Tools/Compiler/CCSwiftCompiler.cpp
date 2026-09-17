@@ -25,6 +25,8 @@
 
 #include <CoreCompiler/CCSwiftCompiler.h>
 #include <CoreCompiler/CCDiagnostic.h>
+#include <cstdio>
+#include <cstdlib>
 #include <CoreCompiler/CCFile.h>
 #include <CoreCompiler/CCUtils.h>
 #include <CoreCompiler/CCUtilsPrivate.h>
@@ -123,12 +125,40 @@ CC_EXPORT Boolean CCSwiftCompilerJobExecute(CCJobRef job,
         args.erase(args.begin());
     }
     
+    /*
+     * Build trace. os_log/NSLog from this app is not reliably delivered to the
+     * unified log (measured 2026-09-17: the process logs through UIKit but no
+     * app-level line arrives), so the compiler writes its own trace to
+     * Documents/build.log. Always on: a build that fails must be diagnosable
+     * from the device alone.
+     */
+    FILE *trace = nullptr;
+    if(const char *home = getenv("HOME"))
+    {
+        std::string tracePath = std::string(home) + "/Documents/build.log";
+        trace = fopen(tracePath.c_str(), "a");
+    }
+    if(trace)
+    {
+        fprintf(trace, "\n--- swift frontend, %zu args\n", argStorage.size());
+        for(const auto &a : argStorage) fprintf(trace, "    %s\n", a.c_str());
+        fflush(trace);
+    }
+    
     CCInitializeSwiftModulesOnce();
     
     CCSwiftObserver obs;
     llvm::remove_fatal_error_handler();
     int status = swift::performFrontend(args, "swift-frontend", nullptr, &obs);
     CCInstallLLVMFatalErrorHandler();
+    if(trace)
+    {
+        fprintf(trace, "  status=%d primaryFile=%s diagnostics=%zu\n", status,
+                obs.primaryFile.empty() ? "(none)" : obs.primaryFile.c_str(), obs.consumer.diags.size());
+        for(auto &d : obs.consumer.diags)
+            fprintf(trace, "    [%d] %s:%u:%u  %s\n", (int)d.kind, d.file.c_str(), d.line, d.column, d.message.c_str());
+        fclose(trace);
+    }
     
     if(outDiagnostics == nullptr)
     {

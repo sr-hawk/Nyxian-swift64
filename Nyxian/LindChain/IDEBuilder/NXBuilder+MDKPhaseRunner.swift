@@ -36,6 +36,9 @@ extension NXBuilder: MDKPhaseRunnerDelegate {
                 withMainSource mainSource: String?,
                 wasSuccessful success: Bool) {
         self.sawJobResult = true
+        NXBuilder.trace("    job type=\(job.type.rawValue) success=\(success) diags=\(diagnostics?.count ?? -1) mainSource=\(mainSource ?? "nil")")
+        NXBuilder.trace("        args: \(job.arguments.joined(separator: " "))")
+        for d in diagnostics ?? [] { NXBuilder.trace("        \(d.mainSource ?? "?"): \(d.message ?? "")") }
         // Never let a failure be invisible: the unified log always gets the shape of the job, so a
         // build can be diagnosed over USB (idevicesyslog) even when nothing reaches the UI.
         if !success {
