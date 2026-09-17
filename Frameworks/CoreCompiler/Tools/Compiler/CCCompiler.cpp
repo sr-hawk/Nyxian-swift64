@@ -42,6 +42,7 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Support/TargetSelect.h>
+#include "../CCTrace.h"
 
 using namespace clang;
 using namespace clang::driver;
@@ -57,6 +58,9 @@ CCASTUnitRef CCCompilerJobExecute(CCJobRef job)
 
     llvm::SmallVector<std::string, 64> argStorage = CCArrayToStringVector(argsArray);
     llvm::SmallVector<const char *, 64> Args = StringVectorToCStrings(argStorage);
+
+    FILE *trace = CCTraceOpen();
+    CCTraceArguments(trace, "clang", argStorage);
 
     /* setting up clang driver */
     auto DiagOpts = std::make_shared<DiagnosticOptions>();
@@ -86,6 +90,7 @@ CCASTUnitRef CCCompilerJobExecute(CCJobRef job)
     
     /* compiling */
     auto Act = std::make_unique<EmitObjAction>();
+    CCTraceCapture capture = CCTraceCaptureBegin(trace);
 
     ASTUnit *ASTUnit = ASTUnit::LoadFromCompilerInvocationAction(
         CI,
@@ -99,6 +104,13 @@ CCASTUnitRef CCCompilerJobExecute(CCJobRef job)
         false,
         CaptureDiagsKind::All
     );
+
+    CCTraceCaptureEnd(&capture);
+    if(trace)
+    {
+        fprintf(trace, "  clang result=%s\n", ASTUnit ? "ast-unit" : "NULL (compilation failed)");
+        fclose(trace);
+    }
 
     return ASTUnit ? CCASTUnitCreateWithASTUnit(CFGetAllocator(job), std::unique_ptr<clang::ASTUnit>(ASTUnit)) : nullptr;
 }

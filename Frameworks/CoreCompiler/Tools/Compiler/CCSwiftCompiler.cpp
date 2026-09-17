@@ -25,6 +25,7 @@
 
 #include <CoreCompiler/CCSwiftCompiler.h>
 #include <CoreCompiler/CCDiagnostic.h>
+#include "../CCTrace.h"
 #include <cstdio>
 #include <cstdlib>
 #include <climits>

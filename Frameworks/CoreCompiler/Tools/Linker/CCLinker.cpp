@@ -32,6 +32,7 @@
 #include <llvm/Support/CrashRecoveryContext.h>
 #include <lld/Common/CommonLinkerContext.h>
 #include <os/lock.h>
+#include "../CCTrace.h"
 
 namespace lld {
 namespace macho {
@@ -59,8 +60,12 @@ Boolean CCLinkerJobExecute(CCJobRef job,
     argStorage.push_back("ld64.lld");   /* have to inject */
     Args.insert(Args.begin(), argStorage.back().c_str());
 
+    FILE *trace = CCTraceOpen();
+    CCTraceArguments(trace, "lld (ld64.lld)", argStorage);
+    CCTraceCapture capture = CCTraceCaptureBegin(trace);
+
     std::string errBuf;
-    int retCode;
+    int retCode = 1;
 
     llvm::CrashRecoveryContext CRC;
     CRC.RunSafely([&]{
@@ -78,6 +83,14 @@ Boolean CCLinkerJobExecute(CCJobRef job,
         lld::CommonLinkerContext::destroy();
     });
     
+    CCTraceCaptureEnd(&capture);
+    if(trace)
+    {
+        fprintf(trace, "  lld retCode=%d\n", retCode);
+        if(!errBuf.empty()) fprintf(trace, "  lld said: %s\n", errBuf.c_str());
+        fclose(trace);
+    }
+
     CFAllocatorRef allocator = CFGetAllocator(job);
     CFMutableArrayRef result = CFArrayCreateMutable(allocator, 1, &kCFTypeArrayCallBacks);
 
