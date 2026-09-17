@@ -141,9 +141,28 @@ CC_EXPORT Boolean CCSwiftCompilerJobExecute(CCJobRef job,
         return status == 0;
     }
     
+    /*
+     * A frontend that rejects its arguments never records a primary input, so
+     * this used to return here and throw away every diagnostic the consumer
+     * collected -- the user saw only "Failed to run project." (measured
+     * 2026-09-17). Diagnostics must survive: fall back to the first input file
+     * named on the command line, and to a placeholder when there is none.
+     */
     if(obs.primaryFile.empty())
     {
-        return status == 0;
+        for(const auto &a : argStorage)
+        {
+            if(a.size() > 6 && a.compare(a.size() - 6, 6, ".swift") == 0)
+            {
+                obs.primaryFile = a;
+                break;
+            }
+        }
+        
+        if(obs.primaryFile.empty())
+        {
+            obs.primaryFile = "<swift-frontend arguments>";
+        }
     }
     
     CFStringRef mainSource = CFStringCreateWithCString(kCFAllocatorSystemDefault, obs.primaryFile.c_str(), kCFStringEncodingUTF8);

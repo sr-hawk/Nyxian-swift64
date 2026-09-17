@@ -36,7 +36,22 @@ extension NXBuilder: MDKPhaseRunnerDelegate {
                 withMainSource mainSource: String?,
                 wasSuccessful success: Bool) {
         self.sawJobResult = true
+        // Never let a failure be invisible: the unified log always gets the shape of the job, so a
+        // build can be diagnosed over USB (idevicesyslog) even when nothing reaches the UI.
+        if !success {
+            NSLog("[NXBuilder] job FAILED type=\(job.type.rawValue) diagnostics=\(diagnostics?.count ?? -1) mainSource=\(mainSource ?? "nil") args=\(job.arguments.joined(separator: " "))")
+            for d in diagnostics ?? [] {
+                NSLog("[NXBuilder]   \(d.mainSource ?? "?"): \(d.message ?? "")")
+            }
+        }
         if let diagnostics = diagnostics,
+           !diagnostics.isEmpty,
+           mainSource == nil {
+            // Diagnostics with no primary input (argument errors, module-load failures) used to be
+            // dropped by the gate below. Record them under the job kind instead.
+            self.database.addDiagnosticMessages(title: job.type == .linker ? "Linker" : "Compiler",
+                                                items: diagnostics, clearPrevious: false)
+        } else if let diagnostics = diagnostics,
            let mainSource = mainSource {
             self.database.removeFileDebug(ofPath: mainSource)
             if job.type == .linker {
