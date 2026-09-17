@@ -119,13 +119,21 @@ CC_EXPORT Boolean CCSwiftCompilerJobExecute(CCJobRef job,
     CFArrayRef argsArray = CCJobGetArguments(job);
     
     llvm::SmallVector<std::string, 64> argStorage = CCArrayToStringVector(argsArray);
-    llvm::SmallVector<const char *, 64> args = StringVectorToCStrings(argStorage);
-    
-    /* get_-frontend_out_of_my_way type shii */
-    if(!args.empty() && std::strcmp(args.front(), "-frontend") == 0)
+    /*
+     * get_-frontend_out_of_my_way type shii -- done on argStorage, NOT on the
+     * C-string view. Anything that later rebuilds the view from argStorage
+     * (the plugin-server path rewrite below) would otherwise put "-frontend"
+     * straight back and the frontend dies with
+     *   <unknown>:0: error: unknown argument: '-frontend'
+     * which is exactly what happened 2026-09-17, silently, until stderr was
+     * captured into Documents/build.log.
+     */
+    if(!argStorage.empty() && argStorage.front() == "-frontend")
     {
-        args.erase(args.begin());
+        argStorage.erase(argStorage.begin());
     }
+    
+    llvm::SmallVector<const char *, 64> args = StringVectorToCStrings(argStorage);
     
     /*
      * Build trace. os_log/NSLog from this app is not reliably delivered to the
