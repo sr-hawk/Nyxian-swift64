@@ -27,6 +27,8 @@
 #include <CoreCompiler/CCDiagnostic.h>
 #include <cstdio>
 #include <cstdlib>
+#include <climits>
+#include <CoreFoundation/CoreFoundation.h>
 #include <CoreCompiler/CCFile.h>
 #include <CoreCompiler/CCUtils.h>
 #include <CoreCompiler/CCUtilsPrivate.h>
@@ -143,6 +145,45 @@ CC_EXPORT Boolean CCSwiftCompilerJobExecute(CCJobRef job,
         fprintf(trace, "\n--- swift frontend, %zu args\n", argStorage.size());
         for(const auto &a : argStorage) fprintf(trace, "    %s\n", a.c_str());
         fflush(trace);
+    }
+    
+    /*
+     * The legacy driver computes -in-process-plugin-server-path from the swift
+     * program path. In an in-process compiler that path is empty, so the value
+     * it emits is the RELATIVE "lib/swift/host/libSwiftInProcPluginServer.dylib"
+     * -- and it emits its own value even when the caller already passed an
+     * absolute one (measured 2026-09-17 in Documents/build.log: our absolute
+     * path never reached the frontend, the relative one did). The frontend then
+     * fails to load the server and exits with status 1 and ZERO diagnostics,
+     * before the diagnostic consumer is installed, so nothing explains it.
+     *
+     * Rewrite it here, where nothing downstream can override it: any relative
+     * value becomes the real server inside this app bundle. Same for the
+     * -plugin-path search paths the driver derives the same broken way.
+     */
+    if(CFBundleRef mainBundle = CFBundleGetMainBundle())
+    {
+        if(CFURLRef bundleURL = CFBundleCopyBundleURL(mainBundle))
+        {
+            char bundlePath[PATH_MAX] = {0};
+            if(CFURLGetFileSystemRepresentation(bundleURL, true, (UInt8 *)bundlePath, sizeof(bundlePath)))
+            {
+                const std::string frameworks = std::string(bundlePath) + "/Frameworks/CoreCompiler.framework/Frameworks";
+                for(size_t i = 0; i + 1 < argStorage.size(); i++)
+                {
+                    if(argStorage[i] == "-in-process-plugin-server-path" && !argStorage[i + 1].empty() && argStorage[i + 1][0] != '/')
+                    {
+                        argStorage[i + 1] = frameworks + "/libSwiftInProcPluginServer.dylib";
+                    }
+                    else if(argStorage[i] == "-plugin-path" && !argStorage[i + 1].empty() && argStorage[i + 1][0] != '/')
+                    {
+                        argStorage[i + 1] = frameworks;
+                    }
+                }
+                args = StringVectorToCStrings(argStorage);
+            }
+            CFRelease(bundleURL);
+        }
     }
     
     CCInitializeSwiftModulesOnce();
