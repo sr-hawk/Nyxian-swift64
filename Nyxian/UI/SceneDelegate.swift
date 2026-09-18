@@ -217,6 +217,11 @@ struct UIOnboardingHelper {
 class SceneDelegate: UIResponder, UIWindowSceneDelegate, UITabBarControllerDelegate, UIOnboardingViewControllerDelegate {
     var window: NXWindowServer?
     
+    /// A `nyxian://` URL that arrived while the app was already running.
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        for context in URLContexts { NXBuildURL.handle(context.url) }
+    }
+
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         NXApplicationState.loadKernelExtensions = (connectionOptions.shortcutItem?.type != "org.emexlabs.nyxian.noload")
         PEUserspaceManager.shared().boot(withKextLoadingEnabled: NXApplicationState.loadKernelExtensions)
@@ -262,6 +267,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate, UITabBarControllerDeleg
         }
         
         themedTabViewController.viewControllers = viewControllers
+
+        // A URL that launched the app cold. Handled after the scene is built, because the build it
+        // asks for needs the bootstrap this method just started and a window to report into.
+        if let launchURL = connectionOptions.urlContexts.first?.url {
+            DispatchQueue.main.async { NXBuildURL.handle(launchURL) }
+        }
         themedTabViewController.delegate = self
         
         self.window?.rootViewController = themedTabViewController

@@ -33,6 +33,16 @@
 				<string>livecontainer</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>org.emexlabs.nyxian.build</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>nyxian</string>
+			</array>
+		</dict>
 	</array>
 	<key>GCSupportedGameControllers</key>
 	<array>
