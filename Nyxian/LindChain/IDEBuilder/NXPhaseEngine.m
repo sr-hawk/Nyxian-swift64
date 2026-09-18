@@ -157,7 +157,22 @@
             }
         }
         
-        [installedPlugins addObjectsFromArray:([NSFileManager.defaultManager contentsOfDirectoryAtURL:pluginsURL includingPropertiesForKeys:nil options:0 error:nil] ?: @[])];
+        /*
+         * Same lib*Macros.dylib filter as the bundle scan above, and for a reason found on
+         * 2026-09-17: not every dylib next to the plugins IS a plugin. libAppIntentsMacros
+         * links @rpath/libAppIntentSchemas.dylib, a support library Apple ships one directory
+         * up from plugins/. It has to travel with the plugins so dyld can resolve it, but
+         * handing it to -load-plugin-library would ask the frontend to find macro
+         * implementations in a library that has none.
+         */
+        for(NSURL *candidate in ([NSFileManager.defaultManager contentsOfDirectoryAtURL:pluginsURL includingPropertiesForKeys:nil options:0 error:nil] ?: @[]))
+        {
+            NSString *name = candidate.lastPathComponent;
+            if([name hasPrefix:@"lib"] && [name hasSuffix:@"Macros.dylib"])
+            {
+                [installedPlugins addObject:candidate];
+            }
+        }
         if(installedPlugins == nil || installedPlugins.count == 0)
         {
             /*
