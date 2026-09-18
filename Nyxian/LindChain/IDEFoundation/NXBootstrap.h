@@ -33,11 +33,11 @@
  * names one. (MobileDevelopmentKit is a separate framework
  * and repeats the version string in its own fallback.)
  */
-#define NXBOOTSTRAP_SDK_OSVERSION   @"27.0"
-#define NXBOOTSTRAP_SDK_NAME        @"iPhoneOS27.0.sdk"
+#define NXBOOTSTRAP_SDK_OSVERSION   @"27.2"
+#define NXBOOTSTRAP_SDK_NAME        @"iPhoneOS27.2.sdk"
 /*
  * the SDK is installed LOCALLY by the owner: the folder
- * Documents/SDK/iPhoneOS27.0.sdk is copied onto the device from
+ * Documents/SDK/iPhoneOS27.2.sdk is copied onto the device from
  * the owner's own machines (USB / Files). Nothing is bundled and
  * nothing is downloaded. The bootstrap only verifies and prunes;
  * building without an installed SDK fails with a precise message.
@@ -67,6 +67,10 @@
 @property (nonatomic, readonly, strong, nonnull) NSURL *swiftURL;
 @property (nonatomic, readonly, strong, nonnull) NSURL *swiftModuleCacheURL;
 @property (nonatomic, readonly, strong, nonnull) NSURL *rootfsURL;
+
+/* NXBOOTSTRAP_SDK_NAME, readable from Swift: an NSString-literal #define is not
+ * imported, and nothing outside this file is allowed to spell the folder name. */
+@property (nonatomic, readonly, strong, nonnull) NSString *sdkName;
 
 @property (atomic, readonly) UInt64 version;
 @property (atomic, readonly) BOOL isInstalled;

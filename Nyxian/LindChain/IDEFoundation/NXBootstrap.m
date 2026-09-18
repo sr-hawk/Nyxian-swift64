@@ -86,6 +86,11 @@ BOOL PEURLIsContainedIn(NSURL *candidate,
     return [self.rootURL URLByAppendingPathComponent:[@"SDK/" stringByAppendingString:NXBOOTSTRAP_SDK_NAME]];
 }
 
+- (NSString *)sdkName
+{
+    return NXBOOTSTRAP_SDK_NAME;
+}
+
 - (NSURL*)pluginsURL
 {
     return [self.rootURL URLByAppendingPathComponent:NXBOOTSTRAP_PLUGINS_DIRNAME];
